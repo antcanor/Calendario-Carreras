@@ -18,6 +18,7 @@ def inicio():
 
     # Consulta SQL: Dame todas las carreras futuras ordenadas por fecha
     # (Usamos date('now') para no mostrar carreras pasadas)
+    conn.execute('DELETE FROM carreras WHERE fecha >= date("2026-01-31")').fetchall()
     carreras = conn.execute('SELECT * FROM carreras WHERE fecha >= date("now") ORDER BY fecha ASC').fetchall()
     conn.close()
 
