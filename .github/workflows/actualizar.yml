@@ -4,7 +4,6 @@ name: Actualizar Carreras Diariamente
 on:
   schedule:
     - cron: '0 6 * * *'
-    - cron: '5 17 * * *'
   # También permite ejecutarlo manualmente desde la web de GitHub
   workflow_dispatch:
   
