@@ -6,7 +6,7 @@ on:
     - cron: '0 6 * * *'
   # También permite ejecutarlo manualmente desde la web de GitHub
   workflow_dispatch:
-
+  
 jobs:
   build:
     runs-on: ubuntu-latest
