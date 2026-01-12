@@ -99,14 +99,70 @@ def fusionar_datos():
 
     print("💾 Guardando en base de datos SQL...")
 
-    # 1. Conectamos (si no existe el archivo carreras.db, lo crea solo)
-    conexion = sqlite3.connect('carreras.db')
+    #Conectamos (si no existe el archivo carreras.db, lo crea solo)
+    conn = sqlite3.connect('carreras.db')
+    cursor = conn.cursor()
+    # 1. CREAR TABLA SI NO EXISTE
+    # (Añadimos la columna 'publicada' por defecto en 0)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS carreras (
+            fecha TEXT,
+            titulo TEXT,
+            ubicacion TEXT,
+            url_inscripcion TEXT PRIMARY KEY,
+            url_ficha TEXT,
+            imagen TEXT,
+            origen TEXT,
+            publicada INTEGER DEFAULT 0
+        )
+    ''')
+    conn.commit()
+    # 2. PROCESAR CADA CARRERA UNA A UNA
+    contador_nuevas = 0
+    contador_actualizadas = 0
 
-    # 2. Guardamos el DataFrame en una tabla llamada 'carreras'
-    # if_exists='replace' borra la tabla vieja y crea una nueva limpia cada vez
-    df_final.to_sql('carreras', conexion, if_exists='replace', index=False)
+    for index, fila in df_final.iterrows():
+        # Datos que vienen del scraper
+        datos_nuevos = (
+            fila['fecha'],
+            fila['titulo'], # Este es el ID (WHERE)
+            fila['ubicacion'],
+            fila['url_ficha'],
+            fila['imagen'],
+            fila['origen'],
+            fila['url_inscripcion']
+        )
+        # A. Comprobamos si existe
+        cursor.execute("SELECT * FROM carreras WHERE titulo = ?", (fila['titulo'],))
+        existe = cursor.fetchone()
 
-    conexion.close()
+        if not existe:
+            # --- CASO 1: ES NUEVA ---
+            # Insertamos todo. La columna 'publicada' se pondrá en 0 automáticamente por el DEFAULT
+            cursor.execute('''
+                    INSERT INTO carreras (fecha, titulo, ubicacion, url_ficha, imagen, origen, url_inscripcion)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', datos_nuevos)
+            contador_nuevas += 1
+        else:
+            # --- CASO 2: YA EXISTE (Actualizamos) ---
+            # Actualizamos todos los campos MENOS 'publicada' y 'url_inscripcion'
+            # Así, si ya la publicaste en Instagram (publicada=1), ese dato NO SE PIERDE.
 
-    print(f"\n🎉 ¡PROCESO TERMINADO!")
-    print(f"📉 Base de datos actualizada: 'carreras.db' con {len(df_final)} carreras.")
+            # Opcional: Podríamos comprobar si algo cambió para no escribir por gusto,
+            # pero SQLite es rápido, así que sobrescribimos para asegurar que está al día.
+            cursor.execute('''
+                    UPDATE carreras 
+                    SET fecha=?, url_inscripcion=?, ubicacion=?, url_ficha=?, imagen=?, origen=?
+                    WHERE titulo=?
+                ''', datos_nuevos)
+
+            # (Truco: Rowcount aquí no siempre es fiable en updates silenciosos, pero asumimos actualización)
+            contador_actualizadas += 1
+    conn.commit()
+    conn.close()
+
+    print(f"📊 Resumen de Sincronización:")
+    print(f"   ✨ Nuevas insertadas: {contador_nuevas}")
+    print(f"   🔄 Existentes revisadas/actualizadas: {contador_actualizadas}")
+    print(f"   ✅ Base de datos 'carreras.db' lista.")

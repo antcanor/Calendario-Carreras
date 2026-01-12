@@ -1,0 +1,216 @@
+---
+// --- ZONA DE SERVIDOR ---
+import Database from 'better-sqlite3';
+
+const db = new Database('../carreras.db', { readonly: true });
+const carreras = db.prepare("SELECT * FROM carreras WHERE fecha >= date('now') ORDER BY fecha ASC").all();
+db.close();
+
+const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const mesesCortos = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
+
+const formatearFecha = (fechaStr) => {
+    const [year, month, day] = fechaStr.split('-');
+    const fecha = new Date(year, month - 1, day);
+    return {
+        dia: fecha.getDate(),
+        mes: mesesCortos[fecha.getMonth()]
+    };
+};
+
+const mesesDisponibles = [...new Set(carreras.map(c => c.fecha.substring(0, 7)))];
+
+const nombreMesFiltro = (fechaYYYYMM) => {
+    const [year, month] = fechaYYYYMM.split('-');
+    return `${nombresMeses[parseInt(month) - 1]} ${year}`;
+};
+---
+
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>Calendario Murcia Running</title>
+    <link rel="icon" type="image/png" href="/assets/logo-removedbg.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        /* --- TEMA NARANJA (ORANGE ENERGY) --- */
+        :root {
+            --color-naranja: #ff6600;      /* Naranja vibrante */
+            --color-naranja-dark: #cc5200; /* Naranja oscuro para hover */
+        }
+
+        body { background-color: #fff7ed; /* Fondo crema muy suave, mejor que gris */ }
+
+        /* Sobrescribimos el azul de Bootstrap por Naranja */
+        .bg-primary { background-color: var(--color-naranja) !important; }
+        .text-primary { color: var(--color-naranja) !important; }
+
+        .btn-primary {
+            background-color: var(--color-naranja) !important;
+            border-color: var(--color-naranja) !important;
+        }
+        .btn-primary:hover {
+            background-color: var(--color-naranja-dark) !important;
+            border-color: var(--color-naranja-dark) !important;
+        }
+
+        .btn-outline-primary {
+            color: var(--color-naranja) !important;
+            border-color: var(--color-naranja) !important;
+        }
+        .btn-outline-primary:hover, .btn-outline-primary.active {
+            background-color: var(--color-naranja) !important;
+            color: white !important;
+        }
+
+        /* Ajustes Tarjeta */
+        .card { transition: transform 0.2s; border: none; border-radius: 12px; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(255, 102, 0, 0.15)!important; }
+        .card-img-top { height: 200px; object-fit: cover; border-top-left-radius: 12px; border-top-right-radius: 12px;}
+
+        /* Badge Fecha */
+        .date-badge {
+            position: absolute;
+            top: 10px; right: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 6px 14px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            line-height: 1; z-index: 10;
+        }
+        .date-day { display: block; font-size: 1.5rem; font-weight: 800; color: #333; }
+
+        /* El mes ahora es NARANJA */
+        .date-month {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--color-naranja); /* <--- CAMBIO AQUÍ */
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark bg-primary mb-4 shadow">
+        <div class="container justify-content-center"> <a class="navbar-brand" href="#">
+                <img src="/assets/logo-removedbg.png" alt="Running Murcia" height="120">
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mb-5">
+        <h2 class="text-center mb-3 fw-bold" style="color: #444;">📅 Próximas Carreras</h2>
+
+        <div class="d-flex justify-content-center flex-wrap gap-2 mb-4">
+            <button class="btn btn-outline-primary filter-btn active" data-filter="all">
+                Todas
+            </button>
+
+            {mesesDisponibles.map((mes) => (
+                <button class="btn btn-outline-primary filter-btn" data-filter={mes}>
+                    {nombreMesFiltro(mes)}
+                </button>
+            ))}
+        </div>
+
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="carreras-grid">
+
+            {carreras.map((carrera) => {
+                const fechaObj = formatearFecha(carrera.fecha);
+                const mesFiltro = carrera.fecha.substring(0, 7);
+
+                return (
+                <div class="col race-item" data-mes={mesFiltro}>
+                    <div class="card h-100 shadow-sm">
+
+                        <div class="position-relative">
+                            {carrera.imagen ? (
+                                <img src={carrera.imagen} class="card-img-top" alt={carrera.titulo} />
+                            ) : (
+                                <div class="card-img-top bg-secondary d-flex align-items-center justify-content-center text-white">
+                                    <i class="bi bi-image fs-1"></i>
+                                </div>
+                            )}
+                            <div class="date-badge">
+                                <span class="date-day">{fechaObj.dia}</span>
+                                <span class="date-month">{fechaObj.mes}</span>
+                            </div>
+                        </div>
+
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title text-primary fw-bold">{carrera.titulo}</h5>
+                            <p class="card-text text-secondary mb-4">
+                                <i class="bi bi-geo-alt-fill" style="color: var(--color-naranja);"></i> {carrera.ubicacion}
+                            </p>
+                            <div class="mt-auto d-grid gap-2">
+                                {carrera.url_inscripcion &&
+                                    <a href={carrera.url_inscripcion} target="_blank" class="btn btn-primary fw-bold">Inscribirse</a>
+                                }
+                                {carrera.url_ficha &&
+                                    <a href={carrera.url_ficha} target="_blank" class="btn btn-outline-primary">+ Info</a>
+                                }
+                            </div>
+                        </div>
+                        <div class="card-footer bg-white text-muted">
+                            <small>Fuente: {carrera.origen}</small>
+                        </div>
+                    </div>
+                </div>
+                )
+            })}
+
+        </div>
+
+        <div id="no-results" class="alert alert-warning text-center mt-5 d-none">
+            No hay carreras en este mes.
+        </div>
+
+        {carreras.length === 0 && (
+            <div class="alert alert-danger text-center mt-5">
+                Base de datos vacía o sin carreras futuras.
+            </div>
+        )}
+
+    </div>
+
+    <script>
+        const buttons = document.querySelectorAll('.filter-btn');
+        const items = document.querySelectorAll('.race-item');
+        const noResultsMsg = document.getElementById('no-results');
+
+        buttons.forEach(button => {
+            button.addEventListener('click', () => {
+                buttons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                const filterValue = button.getAttribute('data-filter');
+                let visibleCount = 0;
+
+                items.forEach(item => {
+                    if (filterValue === 'all' || item.getAttribute('data-mes') === filterValue) {
+                        item.classList.remove('d-none');
+                        visibleCount++;
+                    } else {
+                        item.classList.add('d-none');
+                    }
+                });
+
+                if (visibleCount === 0) {
+                    noResultsMsg.classList.remove('d-none');
+                } else {
+                    noResultsMsg.classList.add('d-none');
+                }
+            });
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
