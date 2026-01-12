@@ -6,8 +6,7 @@ on:
     - cron: '0 6 * * *'
   # También permite ejecutarlo manualmente desde la web de GitHub
   workflow_dispatch:
-push:                   # <--- AÑADE ESTO (El disparador automático al subir cambios)
-    branches: [ "main" ]
+  
 jobs:
   build:
     runs-on: ubuntu-latest
