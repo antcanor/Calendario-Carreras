@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendario Running Murcia</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .card-img-top { height: 200px; object-fit: cover; }
+        .origen-badge { position: absolute; top: 10px; right: 10px; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-primary mb-4">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">🏃‍♂️ Murcia Running</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2 class="text-center mb-4 text-secondary">Próximas Carreras</h2>
+
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+
+            {% for carrera in carreras %}
+            <div class="col">
+                <div class="card h-100 shadow-sm border-0">
+                    {% if carrera.imagen %}
+                    <img src="{{ carrera.imagen }}" class="card-img-top" alt="Cartel">
+                    {% else %}
+                    <img src="https://via.placeholder.com/300x200?text=Sin+Imagen" class="card-img-top">
+                    {% endif %}
+
+                    <span class="badge bg-dark origen-badge">{{ carrera.origen }}</span>
+
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">{{ carrera.titulo }}</h5>
+                        <p class="card-text">
+                            📅 <strong>{{ carrera.fecha_bonita }}</strong><br>
+                            📍 {{ carrera.ubicacion }}
+                        </p>
+                    </div>
+
+                    <div class="card-footer bg-white border-0 d-flex justify-content-between pb-3">
+                        {% if carrera.url_inscripcion %}
+                        <a href="{{ carrera.url_inscripcion }}" target="_blank" class="btn btn-success w-100 me-1">Inscribirse</a>
+                        {% endif %}
+
+                        {% if carrera.url_ficha %}
+                        <a href="{{ carrera.url_ficha }}" target="_blank" class="btn btn-outline-primary w-100 ms-1">Info</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            </div>
+
+        {% if carreras|length == 0 %}
+        <div class="alert alert-warning text-center mt-5">
+            No hay carreras futuras en la base de datos. ¡Ejecuta el actualizador!
+        </div>
+        {% endif %}
+
+    </div>
+
+    <footer class="text-center py-4 text-muted mt-5">
+        <small>Datos recopilados automáticamente.</small>
+    </footer>
+
+</body>
+</html>
