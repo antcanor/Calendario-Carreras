@@ -1,0 +1,42 @@
+name: Actualizar Carreras Diariamente
+
+# Se ejecuta cada día a las 06:00 AM UTC
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  # También permite ejecutarlo manualmente desde la web de GitHub
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    # Permisos para que el robot pueda guardar los cambios en el repo
+    permissions:
+      contents: write
+
+    steps:
+      - name: Descargar código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instalar librerías
+        run: |
+          pip install -r requirements.txt
+          pip install thefuzz  # Por si acaso no está en requirements
+
+      - name: Ejecutar Scrapers y Fusión
+        run: python main.py
+        # Esto ejecutará tus scripts y actualizará 'carreras.db'
+
+      - name: Guardar cambios (Commit & Push)
+        run: |
+          git config --global user.name 'Actualizador Automatico'
+          git config --global user.email 'bot@noreply.github.com'
+          git add carreras.db
+          # Solo hacemos commit si ha cambiado algo
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Actualización automática de carreras" && git push)
