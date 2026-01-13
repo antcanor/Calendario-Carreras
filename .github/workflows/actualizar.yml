@@ -29,9 +29,16 @@ jobs:
           pip install -r requirements.txt
           pip install thefuzz  # Por si acaso no está en requirements
 
-      - name: Ejecutar Scrapers y Fusión
+      - name: 1. Ejecutar Scrapers y Fusión
         run: python main.py
         # Esto ejecutará tus scripts y actualizará 'carreras.db'
+
+      - name: 2. Publicar en Instagram
+        env:
+          # Izquierda: Nombre que busca Python (os.getenv)
+          # Derecha: El secreto guardado en GitHub
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+        run: python instagram.py
 
       - name: Guardar cambios (Commit & Push)
         run: |

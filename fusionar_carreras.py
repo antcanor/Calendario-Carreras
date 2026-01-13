@@ -76,7 +76,7 @@ def fusionar_datos():
                 ratio = fuzz.token_sort_ratio(str(candidata['titulo']), str(otra['titulo']))
 
                 # Si se parecen más de un 80%, es duplicada
-                if ratio > 80:
+                if ratio > 70:
                     print(f"   ✂️ Eliminando duplicado: '{otra['titulo']}' (== '{candidata['titulo']}')")
                     indices_a_borrar.append(i)
 
