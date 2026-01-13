@@ -100,7 +100,7 @@ def obtener_carreras():
                 continue
 
         # --- RESULTADO EN CONSOLA ---
-        print(f"\n🎉 Se han encontrado {len(carreras_extraidas)} carreras.")
+        print(f"\n🎉 Se han encontrado {len(lista_carreras)} carreras.")
         return lista_carreras
 
     else:
