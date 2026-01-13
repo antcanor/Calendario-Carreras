@@ -33,12 +33,10 @@ jobs:
         run: python main.py
         # Esto ejecutará tus scripts y actualizará 'carreras.db'
 
-      - name: 2. Publicar en Instagram
-        env:
-          # Izquierda: Nombre que busca Python (os.getenv)
-          # Derecha: El secreto guardado en GitHub
-          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
-        run: python instagram.py
+#      - name: 2. Publicar en Instagram
+#        env:
+#          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+#        run: python instagram.py
 
       - name: Guardar cambios (Commit & Push)
         run: |
