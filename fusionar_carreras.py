@@ -75,7 +75,7 @@ def fusionar_datos():
             for i, otra in enumerate(lista_dia):
                 ratio = fuzz.token_sort_ratio(str(candidata['titulo']), str(otra['titulo']))
 
-                # Si se parecen más de un 80%, es duplicada
+                # Si se parecen más de un 70%, es duplicada
                 if ratio > 70:
                     print(f"   ✂️ Eliminando duplicado: '{otra['titulo']}' (== '{candidata['titulo']}')")
                     indices_a_borrar.append(i)
@@ -87,7 +87,7 @@ def fusionar_datos():
     # 5. CREACIÓN DEL DATAFRAME FINAL
     df_final = pd.DataFrame(carreras_unicas)
 
-    # Recuperamos el formato de fecha bonito (opcional: o dejarlo ISO YYYY-MM-DD)
+
     # Aquí lo guardamos como YYYY-MM-DD que es mejor para bases de datos
     df_final['fecha'] = df_final['fecha_dt'].dt.strftime('%Y-%m-%d')
 
@@ -107,9 +107,9 @@ def fusionar_datos():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS carreras (
             fecha TEXT,
-            titulo TEXT,
+            titulo TEXT PRIMARY KEY,
             ubicacion TEXT,
-            url_inscripcion TEXT PRIMARY KEY,
+            url_inscripcion TEXT,
             url_ficha TEXT,
             imagen TEXT,
             origen TEXT,
@@ -138,7 +138,7 @@ def fusionar_datos():
 
         if not existe:
             # --- CASO 1: ES NUEVA ---
-            # Insertamos todo. La columna 'publicada' se pondrá en 0 automáticamente por el DEFAULT
+            # Insertamos todo. 
             cursor.execute('''
                     INSERT INTO carreras (fecha, titulo, ubicacion, url_ficha, imagen, origen, url_inscripcion)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -146,7 +146,7 @@ def fusionar_datos():
             contador_nuevas += 1
         else:
             # --- CASO 2: YA EXISTE (Actualizamos) ---
-            # Actualizamos todos los campos MENOS 'publicada' y 'url_inscripcion'
+            # Actualizamos todos los campos MENOS 'publicada' y 'url_inscripcion' y imagen si ya estaba puesta
             # Así, si ya la publicaste en Instagram (publicada=1), ese dato NO SE PIERDE.
 
             # Opcional: Podríamos comprobar si algo cambió para no escribir por gusto,

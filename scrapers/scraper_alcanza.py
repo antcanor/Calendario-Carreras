@@ -2,9 +2,9 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 
-# 1. Configuración Inicial
+# 1. URL objetivo
 url_objetivo = "https://www.alcanzatumeta.es/calendario.php"
-base_domain = "https://www.alcanzatumeta.es/"  # Para corregir enlaces relativos
+url_base = "https://www.alcanzatumeta.es/"  # Para corregir enlaces relativos
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -94,16 +94,15 @@ def obtener_carreras():
             try:
                 # 4. DATOS PRINCIPALES (Columna 3)
                 # Extraemos esto primero porque si no hay título, no nos interesa la fila
-                col_info = celdas[3]
+                evento = celdas[3]
 
                 # Buscamos la etiqueta strong de forma segura
-                titulo_tag = col_info.find('strong')
+                titulo = evento.find('strong')
 
-                # SI NO HAY TÍTULO, SALTAMOS LA FILA (Aquí estaba el error antes)
-                if not titulo_tag:
+                if not titulo:
                     continue
 
-                titulo = titulo_tag.get_text(strip=True)
+                titulo = titulo.get_text(strip=True)
 
                 # 1. FECHA (Corrección para quitar el timestamp oculto)
                 celda_fecha = celdas[0]
@@ -128,14 +127,14 @@ def obtener_carreras():
                             img_url = src
                         else:
                             # Unimos la URL base con la ruta relativa correctamente
-                            img_url = base_domain + src.lstrip('/')
+                            img_url = url_base + src.lstrip('/')
 
-                # 3. TIPO
+                # 3. TIPO. No lo usamos, pero lo dejamos por si acaso
                 tipo = celdas[2].get_text(strip=True)
 
                 # C. UBICACIÓN (CORREGIDO: Usando lista de textos)
                 # stripped_strings devuelve una lista: ['Título', 'Ubicación', 'Texto Botón 1'...]
-                textos_limpios = list(col_info.stripped_strings)
+                textos_limpios = list(evento.stripped_strings)
 
                 ubicacion = "Murcia"  # Valor por defecto
 
@@ -144,7 +143,7 @@ def obtener_carreras():
                     posible_ubicacion = textos_limpios[1]
 
                     # Verificamos que no nos hayamos comido la ubicación y estemos leyendo un botón
-                    palabras_prohibidas = ["FICHA", "INSCRIBIRSE", "LISTADO", "INSCRIPCIONES"]
+                    palabras_prohibidas = ["FICHA DE EVENTO", "INSCRIBIRSE", "LISTADO DE INSCRITOS", "LISTA DE ESPERA"]
                     es_boton = any(p in posible_ubicacion.upper() for p in palabras_prohibidas)
 
                     if not es_boton:
@@ -153,7 +152,7 @@ def obtener_carreras():
                 # 6. ENLACES
                 enlace_ficha = ""
                 enlace_inscripcion = ""
-                botones = col_info.find_all('a')
+                botones = evento.find_all('a')
 
                 for btn in botones:
                     href = btn.get('href')
@@ -162,7 +161,7 @@ def obtener_carreras():
                     if href:
                         # Aseguramos que el enlace sea absoluto
                         if not href.startswith('http'):
-                            href = base_domain + href.lstrip('/')
+                            href = url_base + href.lstrip('/')
 
                         if "FICHA" in texto_btn:
                             enlace_ficha = href
@@ -191,7 +190,7 @@ def obtener_carreras():
         return carreras_extraidas
 
     else:
-        print(f"❌ Error del servidor: {response.status_code}")
+        print(f"❌ Error al conectar: {response.status_code}")
         return []
 
 
@@ -206,4 +205,4 @@ def ejecucion():
         df.to_csv('data/alcanzatumeta_completo.csv', index=False, encoding='utf-8-sig')
         print(f"📂 Datos guardados en 'alcanzatumeta_completo.csv'")
     else:
-        print("\n⚠️ No se encontraron datos.")
+        print("\n⚠️ No se encontraron datos. Revisa los selectores HTML.")
