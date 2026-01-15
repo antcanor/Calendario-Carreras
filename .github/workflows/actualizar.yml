@@ -11,9 +11,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     
-    # Permisos para que el robot pueda guardar los cambios en el repo
+    # Solo necesitamos leer el código, no escribir
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: Descargar código del repositorio
@@ -27,21 +27,22 @@ jobs:
       - name: Instalar librerías
         run: |
           pip install -r requirements.txt
-          pip install thefuzz  # Por si acaso no está en requirements
 
-      - name: 1. Ejecutar Scrapers y Fusión
+      - name: Ejecutar Scrapers y Fusión
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python main.py
-        # Esto ejecutará tus scripts y actualizará 'carreras.db'
 
-#      - name: 2. Publicar en Instagram
-#        env:
-#          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
-#        run: python instagram.py
+      - name: 2. Publicar en Instagram
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+        run: python instagram.py
 
-      - name: Guardar cambios (Commit & Push)
-        run: |
-          git config --global user.name 'Actualizador Automatico'
-          git config --global user.email 'bot@noreply.github.com'
-          git add carreras.db
-          # Solo hacemos commit si ha cambiado algo
-          git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Actualización automática de carreras" && git push)
+      # Ya no hace falta guardar carreras.db porque todo está en Supabase
+#      - name: Guardar cambios (Commit & Push)
+#        run: |
+#          git config --global user.name 'Actualizador Automatico'
+#          git config --global user.email 'bot@noreply.github.com'
+#          git add carreras.db
+#          git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 Actualización automática de carreras" && git push)
