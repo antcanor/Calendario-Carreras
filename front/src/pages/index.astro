@@ -1,10 +1,10 @@
 ---
 // --- ZONA DE SERVIDOR ---
-import Database from 'better-sqlite3';
+import { supabase } from '../lib/supabase';
+const { data, error } = await supabase.from("carreras").select('*').order('fecha',{ascending:true});
 
-const db = new Database('../carreras.db', { readonly: true });
-const carreras = db.prepare("SELECT * FROM carreras WHERE fecha >= date('now') ORDER BY fecha ASC").all();
-db.close();
+// Si hay error, usamos un array vacío como fallback
+const carreras = data || [];
 
 const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const mesesCortos = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
@@ -97,7 +97,6 @@ const nombreMesFiltro = (fechaYYYYMM) => {
     </style>
 </head>
 <body>
-
     <nav class="navbar navbar-dark bg-primary mb-4 shadow">
         <div class="container justify-content-center"> <a class="navbar-brand" href="#">
                 <img src="/assets/logo-removedbg.png" alt="Running Murcia" height="120">
