@@ -2,11 +2,28 @@ import sqlite3
 import requests
 import urllib.parse
 import os
-
+from supabase import create_client, Client
+from dotenv import load_dotenv
+load_dotenv()
 
 # --- CONFIGURACIÓN ---
 # ¡PEGA AQUÍ TU URL DE MAKE!
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+# CONFIGURACIÓN SUPABASE
+supabase_url = os.getenv('SUPABASE_URL')
+supabase_key = os.getenv('SUPABASE_KEY')
+supabase: Client = None
+
+def conexionSupabase():
+    global supabase
+    if supabase_url and supabase_key:
+        try:
+            supabase = create_client(supabase_url, supabase_key)
+            print("   ✅ Conectado a Supabase")
+        except Exception as e:
+            print(f"   ⚠️ No se pudo conectar a Supabase: {e}")
+    else:
+        print("   ⚠️ Variables SUPABASE_URL o SUPABASE_KEY no configuradas")
 
 
 def publicar_pendientes():
@@ -14,26 +31,22 @@ def publicar_pendientes():
     if not WEBHOOK_URL:
         print("❌ ERROR: No encuentro la URL del Webhook")
         return
-
-    conn = sqlite3.connect('carreras.db')
-    conn.row_factory = sqlite3.Row  # Para acceder por nombre de columna
-    cursor = conn.cursor()
+ 
 
     # 1. Buscamos carreras NO publicadas (publicada = 0) y que sean FUTURAS
     # LIMIT 1: Importante para no saturar Instagram (publicamos de 1 en 1 cada día)
-    cursor.execute("""
-        SELECT * FROM carreras 
-        WHERE (publicada = 0 OR publicada IS NULL) 
-        AND fecha >= date('now')
-        ORDER BY fecha ASC 
-        LIMIT 1
-    """)
+    if supabase is None:
+        conexionSupabase()
 
-    carrera = cursor.fetchone()
+    if supabase:
+        print("🔄 Iniciando proceso de publicación...")
+        carrera = supabase.table('carreras').select('*').eq('publicada', 0).gte('fecha', 'now()').order('fecha', desc=False).limit(1).maybe_single().execute().data
+    else:
+        print("❌ ERROR: No hay conexión a Supabase")
+        return
 
     if not carrera:
         print("💤 No hay carreras nuevas pendientes de publicar.")
-        conn.close()
         return
 
     print(f"✨ Encontrada para publicar: {carrera['titulo']}")
@@ -64,17 +77,12 @@ def publicar_pendientes():
 
             # 4. MARCAR COMO PUBLICADA EN LA DB
             # Usamos el título o URL como identificador
-            cursor.execute("UPDATE carreras SET publicada = 1 WHERE url_inscripcion = ?", (carrera['url_inscripcion'],))
-            conn.commit()
-            print("💾 Base de datos actualizada (publicada=1).")
-
+            supabase.table('carreras').update({'publicada': 1}).eq('titulo', carrera['titulo']).execute()
         else:
             print(f"❌ Error en Make: {response.text}")
 
     except Exception as e:
         print(f"❌ Error de conexión: {e}")
-
-    conn.close()
 
 
 if __name__ == "__main__":
