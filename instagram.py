@@ -3,8 +3,7 @@ import requests
 import urllib.parse
 import os
 from supabase import create_client, Client
-from dotenv import load_dotenv
-load_dotenv()
+
 
 # --- CONFIGURACIÓN ---
 # ¡PEGA AQUÍ TU URL DE MAKE!

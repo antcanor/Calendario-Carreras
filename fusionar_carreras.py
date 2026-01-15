@@ -1,11 +1,38 @@
 import pandas as pd
 from thefuzz import fuzz
 import os
-import sqlite3
+from supabase import create_client, Client
+import numpy as np
+
+IMAGEN_DEFECTO_URL_ALCANZA = 'https://www.alcanzatumeta.es/assets/images/no_image.png'
+
+def limpiar_datos_json(dato):
+    """Convierte valores de pandas/numpy que no son JSON compatible a valores válidos"""
+    if pd.isna(dato) or dato is None:
+        return None
+    if isinstance(dato, (np.integer, np.floating)):
+        if np.isnan(dato) or np.isinf(dato):
+            return None
+        return float(dato) if isinstance(dato, np.floating) else int(dato)
+    return str(dato) if dato != '' else None
 
 
 def fusionar_datos():
     print("🔄 Iniciando proceso de fusión...")
+
+    # CONFIGURACIÓN SUPABASE
+    supabase_url = os.getenv('SUPABASE_URL')
+    supabase_key = os.getenv('SUPABASE_KEY')
+    supabase: Client = None
+    
+    if supabase_url and supabase_key:
+        try:
+            supabase = create_client(supabase_url, supabase_key)
+            print("   ✅ Conectado a Supabase")
+        except Exception as e:
+            print(f"   ⚠️ No se pudo conectar a Supabase: {e}")
+    else:
+        print("   ⚠️ Variables SUPABASE_URL o SUPABASE_KEY no configuradas")
 
     # 1. LISTA DE TUS ARCHIVOS CSV
     # Añade aquí los nombres de todos los CSV que generan tus otros scripts
@@ -97,72 +124,77 @@ def fusionar_datos():
     columnas_existentes = [c for c in columnas_finales if c in df_final.columns]
     df_final = df_final[columnas_existentes]
 
-    print("💾 Guardando en base de datos SQL...")
+    print("💾 Guardando en base de datos...")
 
-    #Conectamos (si no existe el archivo carreras.db, lo crea solo)
-    conn = sqlite3.connect('carreras.db')
-    cursor = conn.cursor()
-    # 1. CREAR TABLA SI NO EXISTE
-    # (Añadimos la columna 'publicada' por defecto en 0)
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS carreras (
-            fecha TEXT,
-            titulo TEXT PRIMARY KEY,
-            ubicacion TEXT,
-            url_inscripcion TEXT,
-            url_ficha TEXT,
-            imagen TEXT,
-            origen TEXT,
-            publicada INTEGER DEFAULT 0
-        )
-    ''')
-    conn.commit()
-    # 2. PROCESAR CADA CARRERA UNA A UNA
     contador_nuevas = 0
     contador_actualizadas = 0
+    errores_supabase = 0
 
     for index, fila in df_final.iterrows():
         # Datos que vienen del scraper
-        datos_nuevos = (
-            fila['fecha'],
-            fila['titulo'], # Este es el ID (WHERE)
-            fila['ubicacion'],
-            fila['url_ficha'],
-            fila['imagen'],
-            fila['origen'],
-            fila['url_inscripcion']
-        )
+
+        # Preparar datos para Supabase (diccionario) - LIMPIAMOS VALORES NaN
+        datos_supabase = {
+            'fecha': limpiar_datos_json(fila['fecha']),
+            'titulo': limpiar_datos_json(fila['titulo']),
+            'ubicacion': limpiar_datos_json(fila.get('ubicacion', '')),
+            'url_inscripcion': limpiar_datos_json(fila.get('url_inscripcion', '')),
+            'url_ficha': limpiar_datos_json(fila.get('url_ficha', '')),
+            'imagen': limpiar_datos_json(fila.get('imagen', '')),
+            'origen': limpiar_datos_json(fila.get('origen', '')),
+            'publicada': 0
+        }
+        
         # A. Comprobamos si existe
-        cursor.execute("SELECT * FROM carreras WHERE titulo = ?", (fila['titulo'],))
-        existe = cursor.fetchone()
+        if supabase:
+            existe = supabase.table('carreras').select('*').eq('titulo', fila['titulo']).single().execute().data
+        else:
+            existe = None
 
         if not existe:
             # --- CASO 1: ES NUEVA ---
-            # Insertamos todo. 
-            cursor.execute('''
-                    INSERT INTO carreras (fecha, titulo, ubicacion, url_ficha, imagen, origen, url_inscripcion)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', datos_nuevos)
-            contador_nuevas += 1
+            # Insertamos en Supabase
+            if supabase:
+                try:
+                    supabase.table('carreras').insert(datos_supabase).execute()
+                    contador_nuevas += 1
+                except Exception as e:
+                    print(f"   ⚠️ Error insertando en Supabase '{fila['titulo']}': {e}")
+                    errores_supabase += 1
         else:
             # --- CASO 2: YA EXISTE (Actualizamos) ---
-            # Actualizamos todos los campos MENOS 'publicada' y 'url_inscripcion' y imagen si ya estaba puesta
-            # Así, si ya la publicaste en Instagram (publicada=1), ese dato NO SE PIERDE.
-
-            # Opcional: Podríamos comprobar si algo cambió para no escribir por gusto,
-            # pero SQLite es rápido, así que sobrescribimos para asegurar que está al día.
-            cursor.execute('''
-                    UPDATE carreras 
-                    SET fecha=?, url_inscripcion=?, ubicacion=?, url_ficha=?, imagen=?, origen=?
-                    WHERE titulo=?
-                ''', datos_nuevos)
-
-            # (Truco: Rowcount aquí no siempre es fiable en updates silenciosos, pero asumimos actualización)
-            contador_actualizadas += 1
-    conn.commit()
-    conn.close()
+            # Actualizamos en Supabase (sin alterar 'publicada')
+            if supabase:
+                try:
+                    if 'imagen' in existe and existe['imagen'] == IMAGEN_DEFECTO_URL_ALCANZA:
+                        supabase.table('carreras').update({
+                            'fecha': datos_supabase['fecha'],
+                            'ubicacion': datos_supabase['ubicacion'],
+                            'url_ficha': datos_supabase['url_ficha'],
+                            'imagen': datos_supabase['imagen'],
+                            'origen': datos_supabase['origen'],
+                            'url_inscripcion': datos_supabase['url_inscripcion']
+                        }).eq('titulo', datos_supabase['titulo']).execute()
+                        contador_actualizadas += 1
+                    else:
+                        supabase.table('carreras').update({
+                            'fecha': datos_supabase['fecha'],
+                            'ubicacion': datos_supabase['ubicacion'],
+                            'url_ficha': datos_supabase['url_ficha'],
+                            'origen': datos_supabase['origen'],
+                            'url_inscripcion': datos_supabase['url_inscripcion']
+                        }).eq('titulo', datos_supabase['titulo']).execute()
+                        contador_actualizadas += 1
+                except Exception as e:
+                    print(f"   ⚠️ Error actualizando en Supabase '{fila['titulo']}': {e}")
+                    errores_supabase += 1
 
     print(f"📊 Resumen de Sincronización:")
     print(f"   ✨ Nuevas insertadas: {contador_nuevas}")
     print(f"   🔄 Existentes revisadas/actualizadas: {contador_actualizadas}")
-    print(f"   ✅ Base de datos 'carreras.db' lista.")
+    if supabase:
+        if errores_supabase > 0:
+            print(f"   ⚠️ Errores en Supabase: {errores_supabase}")
+        else:
+            print(f"   ✅ Supabase sincronizado correctamente")
+    print(f"   ✅ Base de datos lista.")
