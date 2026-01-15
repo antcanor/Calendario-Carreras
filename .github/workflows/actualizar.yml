@@ -37,6 +37,8 @@ jobs:
       - name: 2. Publicar en Instagram
         env:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python instagram.py
 
       # Ya no hace falta guardar carreras.db porque todo está en Supabase
