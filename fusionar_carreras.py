@@ -147,7 +147,7 @@ def fusionar_datos():
         
         # A. Comprobamos si existe
         if supabase:
-            existe = supabase.table('carreras').select('*').eq('titulo', fila['titulo']).single().execute().data
+            existe = supabase.table('carreras').select('*').eq('titulo', fila['titulo']).maybe_single().execute().data
         else:
             existe = None
 
