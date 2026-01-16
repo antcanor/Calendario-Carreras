@@ -1,9 +1,12 @@
-name: Actualizar Carreras Diariamente
+name: Publicar en RRSS
 
-# Se ejecuta cada día a las 06:00 AM UTC
+# Se ejecuta dos veces al día, a las 6:00 y a las 18:00 UTC
+# (corresponde a las 8:00 y 19:00 hora peninsular española durante el horario de invierno)
+# (corresponde a las 9:00 y 20:00 hora peninsular española durante el horario de verano)
 on:
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '0 7 * * *'
+    - cron: '0 18 * * *'        
   # También permite ejecutarlo manualmente desde la web de GitHub
   workflow_dispatch:
   
@@ -28,8 +31,9 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Ejecutar Scrapers y Fusión
+      - name: Publicar en RRSS
         env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-        run: python main.py
+        run: python instagram.py
