@@ -1,6 +1,4 @@
 ---
-import Analytics from '@vercel/analytics/astro'
-
 const hoy = new Date().toISOString().split('T')[0];
 // --- ZONA DE SERVIDOR ---
 import { Analytics } from '@vercel/analytics/astro';
@@ -101,7 +99,6 @@ const nombreMesFiltro = (fechaYYYYMM) => {
     </style>
 </head>
 <body>
-    <Analytics />
     <nav class="navbar navbar-dark bg-primary mb-4 shadow">
         <div class="container justify-content-center"> <a class="navbar-brand" href="#">
                 <img src="/assets/logo-removedbg.png" alt="Running Murcia" height="120">
