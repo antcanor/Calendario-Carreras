@@ -1,8 +1,9 @@
 ---
+const hoy = new Date().toISOString().split('T')[0];
 // --- ZONA DE SERVIDOR ---
 import { Analytics } from '@vercel/analytics/astro';
 import { supabase } from '../lib/supabase';
-const { data, error } = await supabase.from("carreras").select('*').order('fecha',{ascending:true});
+const { data, error } = await supabase.from("carreras").select('*').gte('fecha', hoy).order('fecha',{ascending:true});
 
 // Si hay error, usamos un array vacío como fallback
 const carreras = data || [];
