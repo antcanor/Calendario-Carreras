@@ -15,7 +15,7 @@ The project operates through a multi-step, automated pipeline:
 
 ## Technology Stack
 
-*   **Backend**: Python, Flask
+*   **Backend**: Python
 *   **Data Scraping**: Beautiful Soup, Requests
 *   **Data Processing**: Pandas, TheFuzz
 *   **Database**: SQLite
