@@ -18,7 +18,7 @@ The project operates through a multi-step, automated pipeline:
 *   **Backend**: Python
 *   **Data Scraping**: Beautiful Soup, Requests
 *   **Data Processing**: Pandas, TheFuzz
-*   **Database**: SQLite
+*   **Database**: PostgreSQL
 *   **Frontend**: HTML, Bootstrap
 *   **Automation**: GitHub Actions
 *   **Deployment**: Vercel
