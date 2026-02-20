@@ -7,7 +7,7 @@ This repository contains a web application that aggregates and displays a unifie
 The project operates through a multi-step, automated pipeline:
 
 1.  **Scraping**: Individual Python scripts (`crawlers/`) connect to different race calendar websites (`alcanzatumeta.es`, `babelsport.com`, `lineadesalida.net`). They parse the HTML to extract race details such as title, date, location, image, and registration links.
-2.  **Data Aggregation**: The results from each crawler are initially saved as separate `.csv` files in the `data/` directory.
+2.  **Data Aggregation**: The results from each crawler are initially saved as separate `.csv` files in the `data/` directory.a
 3.  **Fusion & Deduplication**: The `fusionar_carreras.py` script reads all `.csv` files, standardizes the data (especially date formats), and merges them into a single dataset. It then implements an intelligent deduplication algorithm using `thefuzz` library to identify and merge duplicate race entries by comparing their titles.
 4.  **Database Storage**: The final, clean, and unique list of races is stored in a SQLite database file, `carreras.db`, replacing the old data.
 5.  **Web Display**: A Flask application (`app.py`) reads the race data from `carreras.db`. It selects only the upcoming races, formats the dates for display, and renders them on a web page using the `index.html` template.
