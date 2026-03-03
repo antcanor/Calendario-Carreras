@@ -3,7 +3,7 @@
 ```sh
 npm create astro@latest -- --template basics
 ```
-
+s
 > 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
 
 ## 🚀 Project Structure
