@@ -1,29 +1,43 @@
 ---
-export const revalidate = 86400; // Regenera la página cada 24h
+import { Analytics } from '@vercel/analytics/astro';
+import { createClient } from "@libsql/client";
 
 const hoy = new Date().toISOString().split('T')[0];
 
-// --- ZONA DE SERVIDOR ---
-import { Analytics } from '@vercel/analytics/astro';
-import { supabase } from '../lib/supabase';
+// --- CONEXIÓN A TURSO ---
+// Astro usa import.meta.env en lugar de process.env
+const tursoUrl = import.meta.env.TURSO_DATABASE_URL;
+const tursoToken = import.meta.env.TURSO_AUTH_TOKEN;
 
-const { data, error } = await supabase
-  .from("carreras")
-  .select(`
-    titulo,
-    fecha,
-    ubicacion,
-    imagen,
-    url_inscripcion,
-    url_ficha,
-    origen
-  `)
-  .gte('fecha', hoy)
-  .order('fecha', { ascending: true });
+let carreras = [];
 
-// Si hay error, usamos un array vacío como fallback
-const carreras = data || [];
+if (tursoUrl && tursoToken) {
+    try {
+        const db = createClient({
+            url: tursoUrl,
+            authToken: tursoToken
+        });
 
+        // Hacemos la consulta SQL igual que en Python
+        const { rows } = await db.execute({
+            sql: `
+                SELECT titulo, fecha, ubicacion, imagen, url_inscripcion, url_ficha, origen 
+                FROM carreras 
+                WHERE fecha >= ? 
+                ORDER BY fecha ASC
+            `,
+            args: [hoy]
+        });
+        
+        carreras = rows;
+    } catch (error) {
+        console.error("Error al conectar con Turso:", error);
+    }
+} else {
+    console.error("Faltan las credenciales de Turso en las variables de entorno (.env)");
+}
+
+// --- LÓGICA DE FECHAS (Se queda igual) ---
 const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 const mesesCortos = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
 

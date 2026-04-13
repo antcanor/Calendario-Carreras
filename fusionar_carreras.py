@@ -4,6 +4,7 @@ import os
 import numpy as np
 import libsql_client
 from dotenv import load_dotenv
+import requests
 
 load_dotenv()
 IMAGEN_DEFECTO_URL_ALCANZA = 'https://www.alcanzatumeta.es/assets/images/no_image.png'
@@ -144,6 +145,21 @@ def fusionar_datos():
     print(f"\n📊 Resumen de Sincronización:")
     print(f"   ✨ Nuevas insertadas: {contador_nuevas}")
     print(f"   🔄 Existentes actualizadas: {contador_actualizadas}")
+
+    if contador_nuevas > 0 or contador_actualizadas > 0:
+        print("\n🚀 Avisando a Vercel para que actualice la página web...")
+        vercel_webhook_url = os.getenv('VERCEL_URL')
+        
+        try:
+            respuesta = requests.post(vercel_webhook_url)
+            if respuesta.status_code in [200, 201]:
+                print("   ✅ Vercel está reconstruyendo la web. Estará lista en 1 minuto.")
+            else:
+                print(f"   ⚠️ Error avisando a Vercel: {respuesta.status_code}")
+        except Exception as e:
+            print(f"   ⚠️ Fallo de conexión con Vercel: {e}")
+    else:
+        print("\n💤 No hay cambios. No hace falta actualizar la web.")
 
 
 if __name__ == "__main__":
