@@ -4,7 +4,7 @@ This repository contains a web application that aggregates and displays a unifie
 
 ## How It Works
 
-The project operates through a multi-step, automated pipeline:
+The project operates through a multi-step, automated pipelines:
 
 1.  **Scraping**: Individual Python scripts (`crawlers/`) connect to different race calendar websites (`alcanzatumeta.es`, `babelsport.com`, `lineadesalida.net`). They parse the HTML to extract race details such as title, date, location, image, and registration links.
 2.  **Data Aggregation**: The results from each crawler are initially saved as separate `.csv` files in the `data/` directory.a
