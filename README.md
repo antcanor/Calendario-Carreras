@@ -1,52 +1,93 @@
-# Calendario-Carreras
+# Calendario de Carreras (Murcia)
 
-This repository contains a web application that aggregates and displays a unified calendar of upcoming running races in the Murcia region of Spain. It automatically scrapes data from various sources, merges them, removes duplicates, and presents them in a clean, user-friendly web interface.
+Este proyecto agrega y muestra un calendario unificado de próximas carreras (principalmente en la región de Murcia). El sistema **scrapea** varias webs, **normaliza y elimina duplicados**, guarda el resultado en una **base de datos en Turso** y el **frontend en Astro** lo consume directamente desde allí.
 
-## How It Works
+## Cómo funciona (flujo actual)
 
-The project operates through a multi-step, automated pipelines:
+1. **Scraping (Python)**
+   - En `scrapers/` hay scripts que obtienen carreras desde distintas fuentes (por ejemplo: `alcanzatumeta.es`, `babelsport.com`, `lineadesalida.net`).
+   - Cada scraper extrae datos como: título, fecha, ubicación, imagen y enlaces (inscripción/ficha).
 
-1.  **Scraping**: Individual Python scripts (`crawlers/`) connect to different race calendar websites (`alcanzatumeta.es`, `babelsport.com`, `lineadesalida.net`). They parse the HTML to extract race details such as title, date, location, image, and registration links.
-2.  **Data Aggregation**: The results from each crawler are initially saved as separate `.csv` files in the `data/` directory.a
-3.  **Fusion & Deduplication**: The `fusionar_carreras.py` script reads all `.csv` files, standardizes the data (especially date formats), and merges them into a single dataset. It then implements an intelligent deduplication algorithm using `thefuzz` library to identify and merge duplicate race entries by comparing their titles.
-4.  **Database Storage**: The final, clean, and unique list of races is stored in a SQLite database file, `carreras.db`, replacing the old data.
-5.  **Web Display**: A Flask application (`app.py`) reads the race data from `carreras.db`. It selects only the upcoming races, formats the dates for display, and renders them on a web page using the `index.html` template.
-6.  **Automation**: A GitHub Actions workflow (`.github/workflows/actualizar.yml`) is configured to run the entire data pipeline (`main.py`) automatically every day. It then commits the updated `carreras.db` file back to the repository, ensuring the race calendar is always up-to-date.
+2. **Agregación temporal (CSVs)**
+   - Los scrapers guardan resultados intermedios en ficheros `.csv` dentro de `data/`.
 
-## Technology Stackk
+3. **Fusión y deduplicación**
+   - `fusionar_carreras.py` lee los CSVs, estandariza datos (especialmente fechas) y deduplica usando coincidencia aproximada de títulos (librería `thefuzz`).
 
-*   **Backend**: Python
-*   **Data Scraping**: Beautiful Soup, Requests
-*   **Data Processing**: Pandas, TheFuzz
-*   **Database**: PostgreSQL
-*   **Frontend**: HTML, Bootstrap
-*   **Automation**: GitHub Actions
-*   **Deployment**: Vercel
+4. **Persistencia en base de datos (Turso)**
+   - El resultado final se inserta/actualiza en la tabla `carreras` en **Turso** (libSQL).
+   - Variables de entorno necesarias:
+     - `TURSO_DATABASE_URL`
+     - `TURSO_AUTH_TOKEN`
 
-## Local Setup and Usage
+5. **Frontend (Astro) consumiendo Turso**
+   - El frontend está en `front/`.
+   - La página `front/src/pages/index.astro` se conecta a Turso con `@libsql/client` y ejecuta una consulta tipo:
+     - “dame carreras con `fecha >= hoy` ordenadas por fecha”.
 
-To run this project on your local machine, follow these steps:
+6. **Automatización y despliegue**
+   - El pipeline puede ejecutarse de forma automática (por ejemplo, con GitHub Actions).
+   - Cuando hay cambios, el script puede avisar a Vercel mediante un webhook para reconstruir la web:
+     - `VERCEL_URL` (webhook)
 
-1.  **Clone the repository:**
-    ```sh
-    git clone https://github.com/antcanor/Calendario-Carreras.git
-    cd Calendario-Carreras
-    ```
+## Publicación automática en Instagram (Make)
 
-2.  **Install the required dependencies:**
-    ```sh
-    pip install -r requirements.txt
-    ```
+Además del calendario, el proyecto puede **publicar carreras en Instagram**:
 
-3.  **Run the data pipeline:**
-    This command executes all crawlers and the fusion script to build the `carreras.db` database.
-    ```sh
-    python main.py
-    ```
+- El script `instagram.py`:
+  1. Se conecta a Turso.
+  2. Busca la próxima carrera futura **no publicada** (`publicada = 0`), ordenada por fecha.
+  3. Envía los datos (título, fecha, ubicación, imagen, link) a un **webhook de Make**.
+  4. Si el envío va bien, marca la carrera como publicada (`publicada = 1`) en la base de datos.
 
-4.  **Start the Flask web server:**
-    ```sh
-    python app.py
-    ```
+Variables de entorno:
+- `WEBHOOK_URL` (webhook de Make)
+- `TURSO_DATABASE_URL`
+- `TURSO_AUTH_TOKEN`
 
-5.  Open your web browser and navigate to `http://127.0.0.1:5000` to see the race calendar.
+## Stack tecnológico
+
+- **Scraping/ETL**: Python, Requests, BeautifulSoup, Pandas, TheFuzz
+- **Base de datos**: Turso (libSQL)
+- **Frontend**: Astro (carpeta `front/`)
+- **Automatización**: GitHub Actions
+- **Despliegue**: Vercel
+- **Automatización Instagram**: Make (webhook) + `instagram.py`
+
+## Ejecución local
+
+### 1) Requisitos
+- Python instalado
+- Node.js + npm (para el frontend Astro)
+- Credenciales de Turso y (opcionalmente) webhook de Make / Vercel
+
+### 2) Backend / Pipeline (Python)
+
+Instalar dependencias:
+```sh
+pip install -r requirements.txt
+```
+
+Configurar variables de entorno (por ejemplo en un `.env` local) y ejecutar:
+```sh
+python main.py
+```
+
+Esto ejecuta scrapers + fusión/deduplicación + actualización en **Turso**.
+
+### 3) Publicación en Instagram (opcional)
+
+Con las variables configuradas (`WEBHOOK_URL`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`):
+```sh
+python instagram.py
+```
+
+### 4) Frontend (Astro)
+
+```sh
+cd front
+npm install
+npm run dev
+```
+
+Luego abre `http://localhost:4321`.
