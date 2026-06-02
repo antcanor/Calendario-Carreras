@@ -1,11 +1,10 @@
 ---
-import { Analytics } from '@vercel/analytics/astro';
+import Analytics from '@vercel/analytics/astro';
 import { createClient } from "@libsql/client";
 
 const hoy = new Date().toISOString().split('T')[0];
+const anio = new Date().getFullYear();
 
-// --- CONEXIÓN A TURSO ---
-// Astro usa import.meta.env en lugar de process.env
 const tursoUrl = import.meta.env.TURSO_DATABASE_URL;
 const tursoToken = import.meta.env.TURSO_AUTH_TOKEN;
 
@@ -13,22 +12,12 @@ let carreras = [];
 
 if (tursoUrl && tursoToken) {
     try {
-        const db = createClient({
-            url: tursoUrl,
-            authToken: tursoToken
-        });
-
-        // Hacemos la consulta SQL igual que en Python
+        const db = createClient({ url: tursoUrl, authToken: tursoToken });
         const { rows } = await db.execute({
-            sql: `
-                SELECT titulo, fecha, ubicacion, imagen, url_inscripcion, url_ficha, origen 
-                FROM carreras 
-                WHERE fecha >= ? 
-                ORDER BY fecha ASC
-            `,
+            sql: `SELECT titulo, fecha, ubicacion, imagen, url_inscripcion, url_ficha, origen
+                  FROM carreras WHERE fecha >= ? ORDER BY fecha ASC`,
             args: [hoy]
         });
-        
         carreras = rows;
     } catch (error) {
         console.error("Error al conectar con Turso:", error);
@@ -37,287 +26,681 @@ if (tursoUrl && tursoToken) {
     console.error("Faltan las credenciales de Turso en las variables de entorno (.env)");
 }
 
-// --- LÓGICA DE FECHAS (Se queda igual) ---
-const nombresMeses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const mesesCortos = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
+const mesesCortos = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+const nombresMeses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
 const formatearFecha = (fechaStr) => {
     const [year, month, day] = fechaStr.split('-');
     const fecha = new Date(year, month - 1, day);
-    return {
-        dia: fecha.getDate(),
-        mes: mesesCortos[fecha.getMonth()]
-    };
+    return { dia: fecha.getDate(), mes: mesesCortos[fecha.getMonth()] };
 };
 
 const mesesDisponibles = [...new Set(carreras.map(c => c.fecha.substring(0, 7)))];
 
 const nombreMesFiltro = (fechaYYYYMM) => {
-    const [year, month] = fechaYYYYMM.split('-');
-    return `${nombresMeses[parseInt(month) - 1]} ${year}`;
+    const [, month] = fechaYYYYMM.split('-');
+    return nombresMeses[parseInt(month) - 1];
 };
 ---
 
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <title>Calendario Murcia Running</title>
+    <title>Murcia Running | Calendario de Carreras</title>
+    <meta name="description" content="Todas las carreras de running de la Región de Murcia en un solo lugar. Actualizado diariamente." />
     <link rel="icon" type="image/png" href="/assets/logo-removedbg.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
     <style>
         :root {
-            --color-naranja: #ff6600;
-            --color-naranja-dark: #cc5200;
+            --naranja: #ff6600;
+            --naranja-dark: #cc5200;
+            --naranja-glow: rgba(255, 102, 0, 0.2);
+            --negro: #111111;
+            --gris-fondo: #f2f2f2;
+            --gris-medio: #888;
+            --gris-borde: #e5e5e5;
         }
 
-        body { background-color: #fff7ed; }
+        *, *::before, *::after { box-sizing: border-box; }
 
-        .bg-primary { background-color: var(--color-naranja) !important; }
-        .text-primary { color: var(--color-naranja) !important; }
-
-        .btn-primary {
-            background-color: var(--color-naranja) !important;
-            border-color: var(--color-naranja) !important;
+        body {
+            background-color: var(--gris-fondo);
+            font-family: 'Inter', sans-serif;
+            color: #222;
+            margin: 0;
         }
 
-        .btn-primary:hover {
-            background-color: var(--color-naranja-dark) !important;
-            border-color: var(--color-naranja-dark) !important;
+        /* ── HEADER ── */
+        .site-header {
+            background: linear-gradient(135deg, var(--naranja-dark) 0%, var(--naranja) 100%);
         }
 
-        .btn-outline-primary {
-            color: var(--color-naranja) !important;
-            border-color: var(--color-naranja) !important;
+        .site-header .inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 24px;
         }
 
-        .btn-outline-primary:hover,
-        .btn-outline-primary.active {
-            background-color: var(--color-naranja) !important;
-            color: white !important;
+        .site-logo {
+            height: 100px;
         }
 
-        .card {
-            transition: transform 0.2s;
+        /* ── HERO STATS ── */
+        .hero-stats {
+            background: var(--negro);
+            padding: 22px 0;
+            color: white;
+        }
+
+        .hero-stats .inner {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .stat-block {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .stat-number {
+            font-family: 'Oswald', sans-serif;
+            font-size: 2.6rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.85;
+            font-weight: 500;
+        }
+
+        .stat-divider {
+            width: 2px;
+            height: 40px;
+            background: rgba(255,255,255,0.3);
+            flex-shrink: 0;
+        }
+
+        /* ── SEARCH ── */
+        .search-wrapper {
+            position: relative;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-wrapper .bi-search {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gris-medio);
+            pointer-events: none;
+        }
+
+        #search-input {
+            width: 100%;
+            height: 44px;
+            padding: 0 16px 0 40px;
             border: none;
+            border-radius: 50px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            color: #222;
+        }
+
+        #search-input::placeholder { color: #aaa; }
+        #search-input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.4);
+        }
+
+        /* ── MAIN ── */
+        .main-content {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 40px 24px 60px;
+        }
+
+        /* ── SECTION HEADER ── */
+        .section-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .section-title {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--negro);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0;
+        }
+
+        .section-title::after {
+            content: '';
+            display: block;
+            width: 36px;
+            height: 3px;
+            background: var(--naranja);
+            margin-top: 6px;
+        }
+
+        /* ── FILTER PILLS ── */
+        .filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .filter-btn {
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            padding: 6px 18px;
+            border-radius: 50px;
+            border: 2px solid var(--naranja);
+            background: transparent;
+            color: var(--naranja);
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            white-space: nowrap;
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: var(--naranja);
+            color: white;
+        }
+
+        /* ── GRID ── */
+        .carreras-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        /* ── CARD ── */
+        .race-card {
+            background: white;
             border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+            border-top: 4px solid var(--naranja);
         }
 
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(255, 102, 0, 0.15)!important;
+        .race-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 14px 30px var(--naranja-glow);
         }
 
-        .card-img-top {
+        .card-img-wrapper {
+            position: relative;
             height: 200px;
+            overflow: hidden;
+            background: #eee;
+        }
+
+        .card-img-wrapper img {
+            width: 100%;
+            height: 100%;
             object-fit: cover;
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
+            display: block;
+            transition: transform 0.3s;
+        }
+
+        .race-card:hover .card-img-wrapper img {
+            transform: scale(1.04);
+        }
+
+        .card-img-placeholder {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #ddd, #eaeaea);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ccc;
+            font-size: 2.5rem;
         }
 
         .date-badge {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 6px 14px;
+            top: 12px;
+            right: 12px;
+            background: white;
             border-radius: 8px;
             text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 6px 12px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+            min-width: 52px;
             line-height: 1;
-            z-index: 10;
         }
 
         .date-day {
             display: block;
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: #333;
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.65rem;
+            font-weight: 700;
+            color: var(--negro);
         }
 
         .date-month {
             display: block;
-            font-size: 0.75rem;
-            font-weight: 800;
-            color: var(--color-naranja);
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--naranja);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .card-body {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .card-race-title {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--negro);
+            text-transform: uppercase;
+            line-height: 1.3;
+            margin: 0 0 8px;
+        }
+
+        .card-location {
+            font-size: 0.87rem;
+            color: var(--gris-medio);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin: 0 0 16px;
+        }
+
+        .card-location i { color: var(--naranja); }
+
+        .card-actions {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn-inscripcion {
+            display: block;
+            text-align: center;
+            background: var(--naranja);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: background 0.15s;
+        }
+
+        .btn-inscripcion:hover {
+            background: var(--naranja-dark);
+            color: white;
+        }
+
+        .btn-info-link {
+            display: block;
+            text-align: center;
+            background: transparent;
+            color: var(--naranja);
+            border: 2px solid var(--naranja);
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .btn-info-link:hover {
+            background: var(--naranja);
+            color: white;
+        }
+
+        .card-footer-source {
+            padding: 8px 16px;
+            background: #fafafa;
+            border-top: 1px solid var(--gris-borde);
+            font-size: 0.72rem;
+            color: #bbb;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+        /* ── EMPTY STATE ── */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--gris-medio);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            color: #ddd;
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        /* ── FOOTER ── */
+        .site-footer {
+            background: var(--negro);
+            color: #aaa;
+            padding: 44px 0 24px;
+        }
+
+        .site-footer .inner {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .footer-brand {
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: white;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .footer-brand span { color: var(--naranja); }
+
+        .footer-desc {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 8px;
+            line-height: 1.6;
+            max-width: 340px;
+        }
+
+        .footer-heading {
+            font-family: 'Oswald', sans-serif;
+            font-size: 0.8rem;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .footer-social a {
+            color: #666;
+            font-size: 1.5rem;
+            text-decoration: none;
+            transition: color 0.15s;
+            display: inline-block;
+        }
+
+        .footer-social a:hover { color: var(--naranja); }
+
+        .footer-sources {
+            font-size: 0.82rem;
+            color: #555;
+            line-height: 2;
+        }
+
+        .footer-divider {
+            border-color: #222;
+            margin: 28px 0 18px;
+        }
+
+        .footer-bottom {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.78rem;
+            color: #444;
+        }
+
+        .footer-heart { color: var(--naranja); }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 640px) {
+            .stat-number { font-size: 2rem; }
+            .stat-divider { display: none; }
+            .site-logo { height: 70px; }
+            .carreras-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 
 <body>
 
-<nav class="navbar navbar-dark bg-primary mb-4 shadow">
-    <div class="container justify-content-center">
-        <a class="navbar-brand" href="#">
-            <img src="/assets/logo-removedbg.png" alt="Running Murcia" height="120">
-        </a>
+<!-- HEADER -->
+<header class="site-header">
+    <div class="inner">
+        <img src="/assets/logo-removedbg.png" alt="Murcia Running" class="site-logo">
     </div>
-</nav>
+</header>
 
-<div class="container mb-5">
-
-<h2 class="text-center mb-3 fw-bold" style="color: #444;">📅 Próximas Carreras</h2>
-
-<div class="d-flex justify-content-center flex-wrap gap-2 mb-4">
-
-<button class="btn btn-outline-primary filter-btn active" data-filter="all">
-Todas
-</button>
-
-{mesesDisponibles.map((mes) => (
-<button class="btn btn-outline-primary filter-btn" data-filter={mes}>
-{nombreMesFiltro(mes)}
-</button>
-))}
-
+<!-- HERO STATS + BÚSQUEDA -->
+<div class="hero-stats">
+    <div class="inner">
+        <div class="stat-block">
+            <span class="stat-number" id="race-count">{carreras.length}</span>
+            <span class="stat-label">carreras<br>próximas</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="search-wrapper">
+            <i class="bi bi-search"></i>
+            <input type="text" id="search-input" placeholder="Busca por nombre o localización...">
+        </div>
+    </div>
 </div>
 
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="carreras-grid">
+<!-- CONTENIDO PRINCIPAL -->
+<main class="main-content">
 
-{carreras.map((carrera) => {
+    <div class="section-header">
+        <h2 class="section-title">Próximas Carreras</h2>
+        <div class="filter-bar">
+            <button class="filter-btn active" data-filter="all">Todas</button>
+            {mesesDisponibles.map((mes) => (
+                <button class="filter-btn" data-filter={mes}>{nombreMesFiltro(mes)}</button>
+            ))}
+        </div>
+    </div>
 
-const fechaObj = formatearFecha(carrera.fecha);
-const mesFiltro = carrera.fecha.substring(0, 7);
+    <div class="carreras-grid" id="carreras-grid">
 
-return (
+        {carreras.map((carrera) => {
+            const fechaObj = formatearFecha(carrera.fecha);
+            const mesFiltro = carrera.fecha.substring(0, 7);
 
-<div class="col race-item" data-mes={mesFiltro}>
+            return (
+                <div class="race-item" data-mes={mesFiltro} data-titulo={carrera.titulo.toLowerCase()} data-ubicacion={(carrera.ubicacion ?? '').toLowerCase()}>
+                    <div class="race-card">
 
-<div class="card h-100 shadow-sm">
+                        <div class="card-img-wrapper">
+                            {carrera.imagen ? (
+                                <img src={carrera.imagen} alt={carrera.titulo} loading="lazy" />
+                            ) : (
+                                <div class="card-img-placeholder">
+                                    <i class="bi bi-image"></i>
+                                </div>
+                            )}
+                            <div class="date-badge">
+                                <span class="date-day">{fechaObj.dia}</span>
+                                <span class="date-month">{fechaObj.mes}</span>
+                            </div>
+                        </div>
 
-<div class="position-relative">
+                        <div class="card-body">
+                            <h5 class="card-race-title">{carrera.titulo}</h5>
+                            <p class="card-location">
+                                <i class="bi bi-geo-alt-fill"></i>
+                                {carrera.ubicacion}
+                            </p>
+                            <div class="card-actions">
+                                {carrera.url_inscripcion &&
+                                    <a href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" class="btn-inscripcion">
+                                        <i class="bi bi-pencil-square"></i> Inscribirse
+                                    </a>
+                                }
+                                {carrera.url_ficha &&
+                                    <a href={carrera.url_ficha} target="_blank" rel="noopener noreferrer" class="btn-info-link">
+                                        <i class="bi bi-info-circle"></i> Más info
+                                    </a>
+                                }
+                            </div>
+                        </div>
 
-{carrera.imagen ? (
+                        <div class="card-footer-source">
+                            <i class="bi bi-database"></i> {carrera.origen}
+                        </div>
 
-<img
-src={carrera.imagen}
-class="card-img-top"
-alt={carrera.titulo}
-loading="lazy"
-/>
+                    </div>
+                </div>
+            );
+        })}
 
-) : (
+    </div>
 
-<div class="card-img-top bg-secondary d-flex align-items-center justify-content-center text-white">
-<i class="bi bi-image fs-1"></i>
-</div>
+    <div id="no-results" class="empty-state d-none">
+        <i class="bi bi-calendar-x"></i>
+        <p class="fw-semibold mb-1">No se encontraron carreras</p>
+        <p class="small mb-0">Prueba con otro mes o cambia el término de búsqueda.</p>
+    </div>
 
-)}
+    {carreras.length === 0 && (
+        <div class="empty-state">
+            <i class="bi bi-exclamation-circle"></i>
+            <p class="fw-semibold mb-1">No hay carreras disponibles</p>
+            <p class="small mb-0">Vuelve más tarde o revisa la conexión con la base de datos.</p>
+        </div>
+    )}
 
-<div class="date-badge">
-<span class="date-day">{fechaObj.dia}</span>
-<span class="date-month">{fechaObj.mes}</span>
-</div>
+</main>
 
-</div>
+<!-- FOOTER -->
+<footer class="site-footer">
+    <div class="inner">
+        <div class="row g-4">
+            <div class="col-md-5">
+                <div class="footer-brand">MURCIA <span>RUNNING</span></div>
+                <p class="footer-desc">
+                    Calendario centralizado de carreras de running en la Región de Murcia. Datos actualizados diariamente desde las principales plataformas.
+                </p>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="footer-heading">Síguenos</div>
+                <div class="footer-social">
+                    <a href="https://www.instagram.com/calendariomurciarunning/" target="_blank" rel="noopener noreferrer" title="Instagram">
+                        <i class="bi bi-instagram"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="col-6 col-md-4">
+                <div class="footer-heading">Fuentes de datos</div>
+                <div class="footer-sources">
+                    alcanzatumeta.es<br>
+                    babelsport.com<br>
+                    lineadesalida.net
+                </div>
+            </div>
+        </div>
 
-<div class="card-body d-flex flex-column">
+        <hr class="footer-divider">
 
-<h5 class="card-title text-primary fw-bold">
-{carrera.titulo}
-</h5>
+        <div class="footer-bottom">
+            <span>© {anio} Murcia Running · Actualizado diariamente</span>
+            <span>Hecho con <span class="footer-heart">♥</span> en Murcia</span>
+        </div>
+    </div>
+</footer>
 
-<p class="card-text text-secondary mb-4">
-<i class="bi bi-geo-alt-fill" style="color: var(--color-naranja);"></i>
-{carrera.ubicacion}
-</p>
-
-<div class="mt-auto d-grid gap-2">
-
-{carrera.url_inscripcion &&
-<a href={carrera.url_inscripcion} target="_blank" class="btn btn-primary fw-bold">
-Inscribirse
-</a>
-}
-
-{carrera.url_ficha &&
-<a href={carrera.url_ficha} target="_blank" class="btn btn-outline-primary">
-+ Info
-</a>
-}
-
-</div>
-
-</div>
-
-<div class="card-footer bg-white text-muted">
-<small>Fuente: {carrera.origen}</small>
-</div>
-
-</div>
-
-</div>
-
-)
-
-})}
-
-</div>
-
-<div id="no-results" class="alert alert-warning text-center mt-5 d-none">
-No hay carreras en este mes.
-</div>
-
-{carreras.length === 0 && (
-
-<div class="alert alert-danger text-center mt-5">
-Base de datos vacía o sin carreras futuras.
-</div>
-
-)}
-
-</div>
+<Analytics />
 
 <script>
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const items = document.querySelectorAll('.race-item');
+    const noResults = document.getElementById('no-results');
+    const searchInput = document.getElementById('search-input');
+    const raceCount = document.getElementById('race-count');
 
-const buttons = document.querySelectorAll('.filter-btn');
-const items = document.querySelectorAll('.race-item');
-const noResultsMsg = document.getElementById('no-results');
+    let currentFilter = 'all';
+    let currentSearch = '';
 
-buttons.forEach(button => {
+    function applyFilters() {
+        let visible = 0;
 
-button.addEventListener('click', () => {
+        items.forEach(item => {
+            const mes = item.getAttribute('data-mes');
+            const titulo = item.getAttribute('data-titulo') || '';
+            const ubicacion = item.getAttribute('data-ubicacion') || '';
 
-buttons.forEach(btn => btn.classList.remove('active'));
-button.classList.add('active');
+            const matchesMes = currentFilter === 'all' || mes === currentFilter;
+            const matchesSearch = currentSearch === ''
+                || titulo.includes(currentSearch)
+                || ubicacion.includes(currentSearch);
 
-const filterValue = button.getAttribute('data-filter');
-let visibleCount = 0;
+            const show = matchesMes && matchesSearch;
+            item.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
 
-items.forEach(item => {
+        raceCount.textContent = visible;
+        noResults.classList.toggle('d-none', visible > 0);
+    }
 
-if (filterValue === 'all' || item.getAttribute('data-mes') === filterValue) {
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFilter = btn.getAttribute('data-filter');
+            applyFilters();
+        });
+    });
 
-item.classList.remove('d-none');
-visibleCount++;
-
-} else {
-
-item.classList.add('d-none');
-
-}
-
-});
-
-if (visibleCount === 0) {
-
-noResultsMsg.classList.remove('d-none');
-
-} else {
-
-noResultsMsg.classList.add('d-none');
-
-}
-
-});
-
-});
-
+    searchInput.addEventListener('input', () => {
+        currentSearch = searchInput.value.toLowerCase().trim();
+        applyFilters();
+    });
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
