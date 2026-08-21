@@ -9,9 +9,10 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/vercel": "^11.0.7",
     "@libsql/client": "^0.17.2",
     "@vercel/analytics": "^1.6.1",
-    "astro": "^5.16.9",
+    "astro": "^7.2.4",
     "better-sqlite3": "^12.6.0"
   }
 }
