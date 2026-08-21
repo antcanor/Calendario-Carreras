@@ -1,709 +1,112 @@
 ---
 import Analytics from '@vercel/analytics/astro';
-import { createClient } from "@libsql/client";
+import { createClient } from '@libsql/client';
 
 const hoy = new Date().toISOString().split('T')[0];
-const anio = new Date().getFullYear();
-
 const tursoUrl = import.meta.env.TURSO_DATABASE_URL;
 const tursoToken = import.meta.env.TURSO_AUTH_TOKEN;
 
 let carreras = [];
 
 if (tursoUrl && tursoToken) {
-    try {
-        const db = createClient({ url: tursoUrl, authToken: tursoToken });
-        const { rows } = await db.execute({
-            sql: `SELECT titulo, fecha, ubicacion, imagen, url_inscripcion, url_ficha, origen
-                  FROM carreras WHERE fecha >= ? ORDER BY fecha ASC`,
-            args: [hoy]
-        });
-        carreras = rows;
-    } catch (error) {
-        console.error("Error al conectar con Turso:", error);
-    }
-} else {
-    console.error("Faltan las credenciales de Turso en las variables de entorno (.env)");
+  try {
+    const db = createClient({ url: tursoUrl, authToken: tursoToken });
+    const { rows } = await db.execute({
+      sql: 'SELECT titulo, fecha, ubicacion, imagen, url_inscripcion, url_ficha, origen FROM carreras WHERE fecha >= ? ORDER BY fecha ASC',
+      args: [hoy]
+    });
+    carreras = rows;
+  } catch (error) { console.error('Error al conectar con Turso:', error); }
 }
 
-const mesesCortos = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
-const nombresMeses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-
-const formatearFecha = (fechaStr) => {
-    const [year, month, day] = fechaStr.split('-');
-    const fecha = new Date(year, month - 1, day);
-    return { dia: fecha.getDate(), mes: mesesCortos[fecha.getMonth()] };
-};
-
-const mesesDisponibles = [...new Set(carreras.map(c => c.fecha.substring(0, 7)))];
-
-const nombreMesFiltro = (fechaYYYYMM) => {
-    const [, month] = fechaYYYYMM.split('-');
-    return nombresMeses[parseInt(month) - 1];
-};
+const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+const mesesLargos = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const fecha = (valor) => { const [a, m, d] = valor.split('-'); const date = new Date(a, m - 1, d); return { dia: date.getDate(), mes: meses[date.getMonth()], completa: `${date.getDate()} ${mesesLargos[date.getMonth()]} ${a}` }; };
+const mesesDisponibles = [...new Set(carreras.map((c) => c.fecha.substring(0, 7)))];
+const etiquetaMes = (valor) => { const [a, m] = valor.split('-'); return `${mesesLargos[Number(m) - 1]} ${a}`; };
+const destacada = carreras[0];
 ---
 
 <html lang="es">
-<head>
+  <head>
     <meta charset="UTF-8" />
-    <title>Murcia Running | Calendario de Carreras</title>
-    <meta name="description" content="Todas las carreras de running de la Región de Murcia en un solo lugar. Actualizado diariamente." />
-    <link rel="icon" type="image/png" href="/assets/logo-removedbg.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-
+    <meta name="description" content="El índice independiente de carreras populares y trail de la Región de Murcia." />
+    <title>CALENDARIO / MURCIA / RUNNING — Calendario de carreras</title>
+    <link rel="icon" type="image/png" href="/assets/logo-removedbg.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
     <style>
-        :root {
-            --naranja: #ff6600;
-            --naranja-dark: #cc5200;
-            --naranja-glow: rgba(255, 102, 0, 0.2);
-            --negro: #111111;
-            --gris-fondo: #f2f2f2;
-            --gris-medio: #888;
-            --gris-borde: #e5e5e5;
-        }
-
-        *, *::before, *::after { box-sizing: border-box; }
-
-        body {
-            background-color: var(--gris-fondo);
-            font-family: 'Inter', sans-serif;
-            color: #222;
-            margin: 0;
-        }
-
-        /* ── HEADER ── */
-        .site-header {
-            background: linear-gradient(135deg, var(--naranja-dark) 0%, var(--naranja) 100%);
-        }
-
-        .site-header .inner {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 16px 24px;
-        }
-
-        .site-logo {
-            height: 100px;
-        }
-
-        /* ── HERO STATS ── */
-        .hero-stats {
-            background: var(--negro);
-            padding: 22px 0;
-            color: white;
-        }
-
-        .hero-stats .inner {
-            max-width: 1140px;
-            margin: 0 auto;
-            padding: 0 24px;
-            display: flex;
-            align-items: center;
-            gap: 24px;
-            flex-wrap: wrap;
-        }
-
-        .stat-block {
-            display: flex;
-            align-items: baseline;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-
-        .stat-number {
-            font-family: 'Oswald', sans-serif;
-            font-size: 2.6rem;
-            font-weight: 700;
-            line-height: 1;
-        }
-
-        .stat-label {
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.85;
-            font-weight: 500;
-        }
-
-        .stat-divider {
-            width: 2px;
-            height: 40px;
-            background: rgba(255,255,255,0.3);
-            flex-shrink: 0;
-        }
-
-        /* ── SEARCH ── */
-        .search-wrapper {
-            position: relative;
-            flex: 1;
-            min-width: 200px;
-        }
-
-        .search-wrapper .bi-search {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--gris-medio);
-            pointer-events: none;
-        }
-
-        #search-input {
-            width: 100%;
-            height: 44px;
-            padding: 0 16px 0 40px;
-            border: none;
-            border-radius: 50px;
-            font-family: 'Inter', sans-serif;
-            font-size: 0.95rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-            color: #222;
-        }
-
-        #search-input::placeholder { color: #aaa; }
-        #search-input:focus {
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(255,255,255,0.4);
-        }
-
-        /* ── MAIN ── */
-        .main-content {
-            max-width: 1140px;
-            margin: 0 auto;
-            padding: 40px 24px 60px;
-        }
-
-        /* ── SECTION HEADER ── */
-        .section-header {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 16px;
-            margin-bottom: 28px;
-        }
-
-        .section-title {
-            font-family: 'Oswald', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: var(--negro);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin: 0;
-        }
-
-        .section-title::after {
-            content: '';
-            display: block;
-            width: 36px;
-            height: 3px;
-            background: var(--naranja);
-            margin-top: 6px;
-        }
-
-        /* ── FILTER PILLS ── */
-        .filter-bar {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .filter-btn {
-            font-family: 'Oswald', sans-serif;
-            font-size: 0.85rem;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            padding: 6px 18px;
-            border-radius: 50px;
-            border: 2px solid var(--naranja);
-            background: transparent;
-            color: var(--naranja);
-            cursor: pointer;
-            transition: background 0.15s, color 0.15s;
-            white-space: nowrap;
-        }
-
-        .filter-btn:hover,
-        .filter-btn.active {
-            background: var(--naranja);
-            color: white;
-        }
-
-        /* ── GRID ── */
-        .carreras-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 24px;
-        }
-
-        /* ── CARD ── */
-        .race-card {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-            transition: transform 0.2s, box-shadow 0.2s;
-            display: flex;
-            flex-direction: column;
-            border-top: 4px solid var(--naranja);
-        }
-
-        .race-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 14px 30px var(--naranja-glow);
-        }
-
-        .card-img-wrapper {
-            position: relative;
-            height: 200px;
-            overflow: hidden;
-            background: #eee;
-        }
-
-        .card-img-wrapper img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            transition: transform 0.3s;
-        }
-
-        .race-card:hover .card-img-wrapper img {
-            transform: scale(1.04);
-        }
-
-        .card-img-placeholder {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #ddd, #eaeaea);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ccc;
-            font-size: 2.5rem;
-        }
-
-        .date-badge {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: white;
-            border-radius: 8px;
-            text-align: center;
-            padding: 6px 12px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.18);
-            min-width: 52px;
-            line-height: 1;
-        }
-
-        .date-day {
-            display: block;
-            font-family: 'Oswald', sans-serif;
-            font-size: 1.65rem;
-            font-weight: 700;
-            color: var(--negro);
-        }
-
-        .date-month {
-            display: block;
-            font-family: 'Oswald', sans-serif;
-            font-size: 0.68rem;
-            font-weight: 600;
-            color: var(--naranja);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .card-body {
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-        }
-
-        .card-race-title {
-            font-family: 'Oswald', sans-serif;
-            font-size: 1.05rem;
-            font-weight: 600;
-            color: var(--negro);
-            text-transform: uppercase;
-            line-height: 1.3;
-            margin: 0 0 8px;
-        }
-
-        .card-location {
-            font-size: 0.87rem;
-            color: var(--gris-medio);
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin: 0 0 16px;
-        }
-
-        .card-location i { color: var(--naranja); }
-
-        .card-actions {
-            margin-top: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .btn-inscripcion {
-            display: block;
-            text-align: center;
-            background: var(--naranja);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 16px;
-            font-family: 'Oswald', sans-serif;
-            font-size: 0.95rem;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            text-decoration: none;
-            transition: background 0.15s;
-        }
-
-        .btn-inscripcion:hover {
-            background: var(--naranja-dark);
-            color: white;
-        }
-
-        .btn-info-link {
-            display: block;
-            text-align: center;
-            background: transparent;
-            color: var(--naranja);
-            border: 2px solid var(--naranja);
-            border-radius: 8px;
-            padding: 8px 16px;
-            font-family: 'Oswald', sans-serif;
-            font-size: 0.9rem;
-            font-weight: 500;
-            text-transform: uppercase;
-            text-decoration: none;
-            transition: background 0.15s, color 0.15s;
-        }
-
-        .btn-info-link:hover {
-            background: var(--naranja);
-            color: white;
-        }
-
-        .card-footer-source {
-            padding: 8px 16px;
-            background: #fafafa;
-            border-top: 1px solid var(--gris-borde);
-            font-size: 0.72rem;
-            color: #bbb;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* ── EMPTY STATE ── */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: var(--gris-medio);
-        }
-
-        .empty-state i {
-            font-size: 3rem;
-            color: #ddd;
-            display: block;
-            margin-bottom: 12px;
-        }
-
-        /* ── FOOTER ── */
-        .site-footer {
-            background: var(--negro);
-            color: #aaa;
-            padding: 44px 0 24px;
-        }
-
-        .site-footer .inner {
-            max-width: 1140px;
-            margin: 0 auto;
-            padding: 0 24px;
-        }
-
-        .footer-brand {
-            font-family: 'Oswald', sans-serif;
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: white;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        .footer-brand span { color: var(--naranja); }
-
-        .footer-desc {
-            font-size: 0.85rem;
-            color: #666;
-            margin-top: 8px;
-            line-height: 1.6;
-            max-width: 340px;
-        }
-
-        .footer-heading {
-            font-family: 'Oswald', sans-serif;
-            font-size: 0.8rem;
-            color: #555;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
-        }
-
-        .footer-social a {
-            color: #666;
-            font-size: 1.5rem;
-            text-decoration: none;
-            transition: color 0.15s;
-            display: inline-block;
-        }
-
-        .footer-social a:hover { color: var(--naranja); }
-
-        .footer-sources {
-            font-size: 0.82rem;
-            color: #555;
-            line-height: 2;
-        }
-
-        .footer-divider {
-            border-color: #222;
-            margin: 28px 0 18px;
-        }
-
-        .footer-bottom {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.78rem;
-            color: #444;
-        }
-
-        .footer-heart { color: var(--naranja); }
-
-        /* ── RESPONSIVE ── */
-        @media (max-width: 640px) {
-            .stat-number { font-size: 2rem; }
-            .stat-divider { display: none; }
-            .site-logo { height: 70px; }
-            .carreras-grid { grid-template-columns: 1fr; }
-        }
+      :root { --ink:#121315; --acid:#ff5a1f; --paper:#f4f1ea; --mist:#d8d7d1; --line:rgba(18,19,21,.22); }
+      .visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+      * { box-sizing:border-box; } html { scroll-behavior:smooth; } body { margin:0; background:var(--paper); color:var(--ink); font-family:'DM Sans',sans-serif; } a { color:inherit; } .mono { font-family:'DM Mono',monospace; }
+      .masthead { min-height:100svh; padding:1.35rem clamp(1.1rem,4vw,4rem) 1.8rem; display:grid; grid-template-rows:auto 1fr auto; background:var(--ink); color:var(--paper); overflow:hidden; position:relative; } .masthead::after { content:'MURCIA'; position:absolute; right:-.07em; bottom:-.24em; font:clamp(12rem,31vw,31rem)/.72 'Archivo Black',sans-serif; letter-spacing:-.12em; color:rgba(255,255,255,.035); pointer-events:none; }
+      .navline, .marquee, .event-kicker, .counter, .filter, .date-tag { font:500 .69rem/1.2 'DM Mono',monospace; letter-spacing:.07em; text-transform:uppercase; } .navline { display:flex; align-items:center; justify-content:space-between; gap:1rem; position:relative; z-index:1; } .brand { font:1rem/1 'Archivo Black',sans-serif; text-decoration:none; letter-spacing:-.07em; } .brand span { color:var(--acid); } .navlink { text-decoration:none; border-bottom:1px solid var(--acid); padding-bottom:.2rem; }
+      .hero { max-width:1300px; width:100%; margin:auto; align-self:center; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr); align-items:end; gap:3rem; position:relative; z-index:1; } .hero-copy { padding-top:5rem; } .label { color:var(--acid); font:500 .72rem 'DM Mono',monospace; letter-spacing:.08em; text-transform:uppercase; } h1 { max-width:850px; margin:.55rem 0 0; font:clamp(4rem,10vw,10.5rem)/.78 'Archivo Black',sans-serif; letter-spacing:-.09em; text-transform:uppercase; } h1 i { color:var(--acid); font-style:normal; } .hero-description { max-width:31rem; margin:1.7rem 0 0; font-size:clamp(1rem,1.4vw,1.25rem); line-height:1.45; color:#c3c3bd; }
+      .next-event { display:block; min-height:25rem; text-decoration:none; position:relative; background:#292a2b; overflow:hidden; } .next-event img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.72; filter:grayscale(1) contrast(1.1); transition:transform .5s ease,filter .5s ease; } .next-event:hover img { transform:scale(1.05); filter:grayscale(0) contrast(1); } .next-event::after { content:''; position:absolute; inset:0; background:linear-gradient(0deg,rgba(0,0,0,.88),transparent 68%); } .event-content { position:absolute; inset:auto 1.2rem 1.2rem; z-index:1; } .event-kicker { color:var(--acid); } .event-name { margin:.5rem 0; font-size:1.45rem; font-weight:700; line-height:1.08; } .event-place { margin:0; color:#deded8; font-size:.87rem; } .event-arrow { position:absolute; z-index:2; top:1rem; right:1rem; display:grid; place-items:center; width:2.5rem; height:2.5rem; background:var(--acid); color:var(--ink); font-size:1.3rem; border-radius:50%; }
+      .marquee { display:flex; justify-content:space-between; align-items:end; position:relative; z-index:1; padding-top:2rem; color:#afafa9; border-top:1px solid rgba(255,255,255,.2); } .scroll-cue { color:var(--acid); text-decoration:none; }
+      main { padding:clamp(4rem,9vw,8rem) clamp(1.1rem,4vw,4rem); max-width:1600px; margin:auto; } .index-head { display:grid; grid-template-columns:1fr auto; gap:2rem; padding-bottom:2rem; border-bottom:2px solid var(--ink); align-items:end; } h2 { max-width:950px; margin:.5rem 0 0; font:clamp(3.2rem,8vw,8rem)/.8 'Archivo Black',sans-serif; letter-spacing:-.09em; text-transform:uppercase; } .counter { text-align:right; padding-bottom:.45rem; }
+      .controls { padding:1.35rem 0 1.8rem; border-bottom:1px solid var(--line); } .search { width:100%; margin-bottom:.8rem; padding:.82rem 0; border:0; border-bottom:2px solid var(--ink); border-radius:0; outline:0; color:var(--ink); background:transparent; font:500 1rem 'DM Mono',monospace; } .search::placeholder { color:#747570; } .search:focus { border-color:var(--acid); } .filters { display:flex; flex-wrap:wrap; gap:.45rem; } .filter { appearance:none; padding:.62rem .8rem; background:transparent; border:1px solid var(--line); border-radius:0; color:var(--ink); cursor:pointer; transition:.18s; } .filter:hover, .filter.active { background:var(--ink); border-color:var(--ink); color:var(--acid); }
+      .race-list { display:grid; } .race { display:grid; grid-template-columns:5.2rem 5.5rem minmax(0,1fr) minmax(9rem,.55fr) auto; align-items:center; gap:1.4rem; padding:1.15rem 0; border-bottom:1px solid var(--line); transition:padding .22s,background .22s; } .race[hidden] { display:none; } .race:hover { padding-left:1rem; padding-right:1rem; background:var(--acid); } .race-image { width:5.5rem; height:5.5rem; overflow:hidden; background:#292a2b; } .race-image img { width:100%; height:100%; object-fit:cover; filter:grayscale(1); transition:filter .2s,transform .25s; } .race:hover .race-image img { filter:grayscale(0); transform:scale(1.06); } .race-image i { display:grid; height:100%; place-items:center; color:var(--acid); font-size:1.25rem; } .date { font:clamp(2.6rem,4vw,4.8rem)/.8 'Archivo Black',sans-serif; letter-spacing:-.08em; } .date span { display:block; margin-top:.45rem; font:500 .65rem 'DM Mono',monospace; letter-spacing:.08em; } .race-title { margin:0; font-size:clamp(1.2rem,2.2vw,2rem); line-height:1.05; letter-spacing:-.045em; font-weight:700; } .race-place { margin:.35rem 0 0; color:#5b5d5a; font-size:.87rem; } .race-meta { font:500 .68rem/1.55 'DM Mono',monospace; color:#5b5d5a; text-transform:uppercase; } .race-links { display:flex; align-items:center; justify-content:flex-end; gap:.5rem; } .action { display:inline-flex; align-items:center; justify-content:center; min-width:2.55rem; height:2.55rem; padding:0 .85rem; border:1px solid var(--ink); font:500 .68rem 'DM Mono',monospace; text-decoration:none; text-transform:uppercase; letter-spacing:.04em; transition:.18s; } .action:hover { color:var(--paper); background:var(--ink); } .action.primary { color:var(--ink); background:var(--acid); border-color:var(--acid); } .action.primary:hover { background:var(--ink); color:var(--acid); }
+      .empty { padding:4rem 1rem; text-align:center; border-bottom:1px solid var(--line); font-size:1.1rem; } .footer { padding:1.5rem clamp(1.1rem,4vw,4rem); display:flex; justify-content:space-between; background:var(--acid); font:500 .68rem 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; }
+      @media (max-width:760px) { .masthead { min-height:auto; } .hero { grid-template-columns:1fr; gap:2rem; } .hero-copy { padding-top:4.5rem; } h1 { font-size:clamp(4rem,18vw,7rem); } .next-event { min-height:18rem; } .index-head { grid-template-columns:1fr; gap:.5rem; } .counter { text-align:left; } .race { grid-template-columns:4.2rem 3.5rem minmax(0,1fr) auto; gap:.75rem; } .race-image { width:3.5rem; height:3.5rem; } .race-meta { display:none; } .date { font-size:2.6rem; } .race-links { flex-direction:column; } .action { min-width:2.4rem; padding:0 .55rem; } .footer { gap:1rem; flex-direction:column; } }
     </style>
-</head>
+  </head>
+  <body>
+    <header class="masthead">
+      <nav class="navline"><a class="brand" href="#top">CALENDARIO<span>/</span>MURCIA<span>/</span>RUNNING</a><a class="navlink" href="#calendario">Ver calendario ↓</a></nav>
+      <div class="hero" id="top">
+        <div class="hero-copy"><span class="label">Calendario de carreras · Región de Murcia</span><h1>Busca.<br />Corre.<br /><i>Vuelve.</i></h1><p class="hero-description">Un punto de partida para quienes llenan los domingos de kilómetros. Carreras populares, trail y retos de la Región de Murcia.</p></div>
+        {destacada && <a class="next-event" href={destacada.url_ficha || destacada.url_inscripcion || '#calendario'} target={destacada.url_ficha || destacada.url_inscripcion ? '_blank' : undefined} rel="noopener noreferrer">
+          {destacada.imagen && <img src={destacada.imagen} alt="" />}
+          <span class="event-arrow">↗</span><div class="event-content"><span class="event-kicker">Próxima carrera · {fecha(destacada.fecha).completa}</span><h2 class="event-name">{destacada.titulo}</h2><p class="event-place"><i class="bi bi-geo-alt me-1"></i>{destacada.ubicacion}</p></div>
+        </a>}
+      </div>
+      <div class="marquee"><span>Actualizado con carreras futuras · {carreras.length} en el radar</span><a class="scroll-cue" href="#calendario">↓ Explorar carreras</a></div>
+    </header>
+    <main id="calendario">
+      <div class="index-head"><div><span class="label" style="color: var(--ink)">01 / Calendario</span><h2>El próximo<br />dorsal.</h2></div><p class="counter">{carreras.length.toString().padStart(2, '0')} carreras<br />por descubrir</p></div>
+      <div class="controls"><label class="visually-hidden" for="race-search">Buscar carrera</label><input class="search" id="race-search" type="search" placeholder="Buscar por carrera o ubicación…" autocomplete="off" /><div class="filters" aria-label="Filtrar calendario por mes"><button class="filter active" data-filter="all">Todo el calendario</button>{mesesDisponibles.map((mes) => <button class="filter" data-filter={mes}>{etiquetaMes(mes)}</button>)}</div></div>
+      <section class="race-list" aria-label="Listado de carreras">
+        {carreras.map((carrera, indice) => { const cuando = fecha(carrera.fecha); const mesFiltro = carrera.fecha.substring(0, 7); return <article class="race" data-mes={mesFiltro} data-search={`${carrera.titulo} ${carrera.ubicacion}`}><div class="date">{cuando.dia}<span>{cuando.mes}</span></div><div class="race-image">{carrera.imagen ? <img src={carrera.imagen} alt="" loading="lazy" /> : <i class="bi bi-flag-fill"></i>}</div><div><p class="race-title">{carrera.titulo}</p><p class="race-place"><i class="bi bi-geo-alt me-1"></i>{carrera.ubicacion}</p></div><div class="race-meta">#{String(indice + 1).padStart(2, '0')}<br />{carrera.origen || 'Agenda Murcia'}</div><div class="race-links">{carrera.url_ficha && <a class="action" href={carrera.url_ficha} target="_blank" rel="noopener noreferrer" aria-label={`Ver detalles de ${carrera.titulo}`}>Info</a>}{carrera.url_inscripcion && <a class="action primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" aria-label={`Inscribirse a ${carrera.titulo}`}>Ir ↗</a>}</div></article>; })}
+      </section>
+      <div class="empty" id="no-results" hidden>No hay carreras con esos criterios. Prueba con otro nombre, ubicación o mes.</div>
+      {carreras.length === 0 && <div class="empty">Aún no hay próximas pruebas publicadas. Vuelve pronto.</div>}
+    </main>
+    <footer class="footer"><span>CALENDARIO/MURCIA/RUNNING © {new Date().getFullYear()}</span><span>Tu próximo kilómetro empieza aquí.</span></footer>
+    <Analytics />
+    <script>
+      const buttons = document.querySelectorAll('.filter');
+      const races = document.querySelectorAll('.race');
+      const search = document.querySelector('#race-search');
+      const empty = document.querySelector('#no-results');
+      let selectedMonth = 'all';
 
-<body>
-
-<!-- HEADER -->
-<header class="site-header">
-    <div class="inner">
-        <img src="/assets/logo-removedbg.png" alt="Murcia Running" class="site-logo">
-    </div>
-</header>
-
-<!-- HERO STATS + BÚSQUEDA -->
-<div class="hero-stats">
-    <div class="inner">
-        <div class="stat-block">
-            <span class="stat-number" id="race-count">{carreras.length}</span>
-            <span class="stat-label">carreras<br>próximas</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="search-wrapper">
-            <i class="bi bi-search"></i>
-            <input type="text" id="search-input" placeholder="Busca por nombre o localización...">
-        </div>
-    </div>
-</div>
-
-<!-- CONTENIDO PRINCIPAL -->
-<main class="main-content">
-
-    <div class="section-header">
-        <h2 class="section-title">Próximas Carreras</h2>
-        <div class="filter-bar">
-            <button class="filter-btn active" data-filter="all">Todas</button>
-            {mesesDisponibles.map((mes) => (
-                <button class="filter-btn" data-filter={mes}>{nombreMesFiltro(mes)}</button>
-            ))}
-        </div>
-    </div>
-
-    <div class="carreras-grid" id="carreras-grid">
-
-        {carreras.map((carrera) => {
-            const fechaObj = formatearFecha(carrera.fecha);
-            const mesFiltro = carrera.fecha.substring(0, 7);
-
-            return (
-                <div class="race-item" data-mes={mesFiltro} data-titulo={carrera.titulo.toLowerCase()} data-ubicacion={(carrera.ubicacion ?? '').toLowerCase()}>
-                    <div class="race-card">
-
-                        <div class="card-img-wrapper">
-                            {carrera.imagen ? (
-                                <img src={carrera.imagen} alt={carrera.titulo} loading="lazy" />
-                            ) : (
-                                <div class="card-img-placeholder">
-                                    <i class="bi bi-image"></i>
-                                </div>
-                            )}
-                            <div class="date-badge">
-                                <span class="date-day">{fechaObj.dia}</span>
-                                <span class="date-month">{fechaObj.mes}</span>
-                            </div>
-                        </div>
-
-                        <div class="card-body">
-                            <h5 class="card-race-title">{carrera.titulo}</h5>
-                            <p class="card-location">
-                                <i class="bi bi-geo-alt-fill"></i>
-                                {carrera.ubicacion}
-                            </p>
-                            <div class="card-actions">
-                                {carrera.url_inscripcion &&
-                                    <a href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" class="btn-inscripcion">
-                                        <i class="bi bi-pencil-square"></i> Inscribirse
-                                    </a>
-                                }
-                                {carrera.url_ficha &&
-                                    <a href={carrera.url_ficha} target="_blank" rel="noopener noreferrer" class="btn-info-link">
-                                        <i class="bi bi-info-circle"></i> Más info
-                                    </a>
-                                }
-                            </div>
-                        </div>
-
-                        <div class="card-footer-source">
-                            <i class="bi bi-database"></i> {carrera.origen}
-                        </div>
-
-                    </div>
-                </div>
-            );
-        })}
-
-    </div>
-
-    <div id="no-results" class="empty-state d-none">
-        <i class="bi bi-calendar-x"></i>
-        <p class="fw-semibold mb-1">No se encontraron carreras</p>
-        <p class="small mb-0">Prueba con otro mes o cambia el término de búsqueda.</p>
-    </div>
-
-    {carreras.length === 0 && (
-        <div class="empty-state">
-            <i class="bi bi-exclamation-circle"></i>
-            <p class="fw-semibold mb-1">No hay carreras disponibles</p>
-            <p class="small mb-0">Vuelve más tarde o revisa la conexión con la base de datos.</p>
-        </div>
-    )}
-
-</main>
-
-<!-- FOOTER -->
-<footer class="site-footer">
-    <div class="inner">
-        <div class="row g-4">
-            <div class="col-md-5">
-                <div class="footer-brand">MURCIA <span>RUNNING</span></div>
-                <p class="footer-desc">
-                    Calendario centralizado de carreras de running en la Región de Murcia. Datos actualizados diariamente desde las principales plataformas.
-                </p>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="footer-heading">Síguenos</div>
-                <div class="footer-social">
-                    <a href="https://www.instagram.com/calendariomurciarunning/" target="_blank" rel="noopener noreferrer" title="Instagram">
-                        <i class="bi bi-instagram"></i>
-                    </a>
-                </div>
-            </div>
-            <div class="col-6 col-md-4">
-                <div class="footer-heading">Fuentes de datos</div>
-                <div class="footer-sources">
-                    alcanzatumeta.es<br>
-                    babelsport.com<br>
-                    lineadesalida.net
-                </div>
-            </div>
-        </div>
-
-        <hr class="footer-divider">
-
-        <div class="footer-bottom">
-            <span>© {anio} Murcia Running · Actualizado diariamente</span>
-            <span>Hecho con <span class="footer-heart">♥</span> en Murcia</span>
-        </div>
-    </div>
-</footer>
-
-<Analytics />
-
-<script>
-    const filterBtns = document.querySelectorAll('.filter-btn');
-    const items = document.querySelectorAll('.race-item');
-    const noResults = document.getElementById('no-results');
-    const searchInput = document.getElementById('search-input');
-    const raceCount = document.getElementById('race-count');
-
-    let currentFilter = 'all';
-    let currentSearch = '';
-
-    function applyFilters() {
-        let visible = 0;
-
-        items.forEach(item => {
-            const mes = item.getAttribute('data-mes');
-            const titulo = item.getAttribute('data-titulo') || '';
-            const ubicacion = item.getAttribute('data-ubicacion') || '';
-
-            const matchesMes = currentFilter === 'all' || mes === currentFilter;
-            const matchesSearch = currentSearch === ''
-                || titulo.includes(currentSearch)
-                || ubicacion.includes(currentSearch);
-
-            const show = matchesMes && matchesSearch;
-            item.style.display = show ? '' : 'none';
-            if (show) visible++;
+      const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const updateList = () => {
+        const query = normalize(search?.value.trim() || '');
+        let total = 0;
+        races.forEach((race) => {
+          const matchesMonth = selectedMonth === 'all' || race.dataset.mes === selectedMonth;
+          const matchesSearch = !query || normalize(race.dataset.search || '').includes(query);
+          const show = matchesMonth && matchesSearch;
+          race.hidden = !show;
+          if (show) total++;
         });
+        if (empty) empty.hidden = total !== 0;
+      };
 
-        raceCount.textContent = visible;
-        noResults.classList.toggle('d-none', visible > 0);
-    }
-
-    filterBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            filterBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentFilter = btn.getAttribute('data-filter');
-            applyFilters();
-        });
-    });
-
-    searchInput.addEventListener('input', () => {
-        currentSearch = searchInput.value.toLowerCase().trim();
-        applyFilters();
-    });
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-</body>
+      buttons.forEach((button) => button.addEventListener('click', () => {
+        buttons.forEach((item) => item.classList.remove('active'));
+        button.classList.add('active');
+        selectedMonth = button.dataset.filter || 'all';
+        updateList();
+      }));
+      search?.addEventListener('input', updateList);
+    </script>
+  </body>
 </html>
+
+
