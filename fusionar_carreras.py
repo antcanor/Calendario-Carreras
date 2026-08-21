@@ -5,9 +5,13 @@ import numpy as np
 import libsql_client
 from dotenv import load_dotenv
 import requests
+import time
+from datetime import date
 
 load_dotenv()
 IMAGEN_DEFECTO_URL_ALCANZA = 'https://www.alcanzatumeta.es/assets/images/no_image.png'
+NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search'
+PAUSA_GEOCODIFICACION = 1.1
 
 
 def limpiar_datos_json(dato):
@@ -18,6 +22,35 @@ def limpiar_datos_json(dato):
             return None
         return float(dato) if isinstance(dato, np.floating) else int(dato)
     return str(dato) if dato != '' else None
+
+
+def asegurar_columnas_mapa(client):
+    """Crea los campos del mapa si la base aún no se ha preparado."""
+    columnas = {fila[1] for fila in client.execute('PRAGMA table_info(carreras)').rows}
+    for definicion in ('latitud REAL', 'longitud REAL'):
+        nombre = definicion.split()[0]
+        if nombre not in columnas:
+            client.execute(f'ALTER TABLE carreras ADD COLUMN {definicion}')
+
+
+def geocodificar_ubicacion(ubicacion, user_agent):
+    """Devuelve latitud y longitud de una ubicación de Murcia o None si no se encuentra."""
+    respuesta = requests.get(
+        NOMINATIM_URL,
+        params={
+            'q': f'{ubicacion}, Región de Murcia, España',
+            'format': 'jsonv2',
+            'limit': 1,
+            'countrycodes': 'es',
+        },
+        headers={'User-Agent': user_agent, 'Accept-Language': 'es'},
+        timeout=20,
+    )
+    respuesta.raise_for_status()
+    resultados = respuesta.json()
+    if not resultados:
+        return None
+    return float(resultados[0]['lat']), float(resultados[0]['lon'])
 
 
 def fusionar_datos():
@@ -88,12 +121,44 @@ def fusionar_datos():
     try:
         # Nos conectamos directamente a la nube
         client = libsql_client.create_client_sync(turso_url, auth_token=turso_token)
+        asegurar_columnas_mapa(client)
         print("   ✅ Conectado a Turso (Modo Remoto)")
     except Exception as e:
         print(f"   ❌ Error conectando a Turso: {e}")
         return
 
     # --- 7. INSERCIÓN / ACTUALIZACIÓN ---
+    user_agent = os.getenv('NOMINATIM_USER_AGENT')
+    cache_coordenadas = {
+        str(ubicacion).strip(): (float(latitud), float(longitud))
+        for ubicacion, latitud, longitud in client.execute(
+            'SELECT ubicacion, latitud, longitud FROM carreras '
+            'WHERE ubicacion IS NOT NULL AND latitud IS NOT NULL AND longitud IS NOT NULL'
+        ).rows
+        if str(ubicacion).strip()
+    }
+    ubicaciones_futuras = {
+        str(limpiar_datos_json(fila.get('ubicacion', ''))).strip()
+        for _, fila in df_final.iterrows()
+        if fila['fecha_dt'].date() >= date.today() and limpiar_datos_json(fila.get('ubicacion', ''))
+    }
+    nuevas_ubicaciones = sorted(ubicaciones_futuras - set(cache_coordenadas))
+    if nuevas_ubicaciones and not user_agent:
+        print('   Aviso: falta NOMINATIM_USER_AGENT; no se geocodifican ubicaciones nuevas.')
+    elif nuevas_ubicaciones:
+        print(f'   Localizando {len(nuevas_ubicaciones)} ubicaciones nuevas...')
+        for ubicacion in nuevas_ubicaciones:
+            try:
+                coordenadas = geocodificar_ubicacion(ubicacion, user_agent)
+                if coordenadas:
+                    cache_coordenadas[ubicacion] = coordenadas
+                    print(f'      OK: {ubicacion}')
+                else:
+                    print(f'      Sin resultado: {ubicacion}')
+            except requests.RequestException as error:
+                print(f'      Error localizando {ubicacion}: {error}')
+            time.sleep(PAUSA_GEOCODIFICACION)
+
     for index, fila in df_final.iterrows():
         titulo = limpiar_datos_json(fila['titulo'])
         fecha = limpiar_datos_json(fila['fecha'])
@@ -102,6 +167,8 @@ def fusionar_datos():
         url_ficha = limpiar_datos_json(fila.get('url_ficha', ''))
         imagen = limpiar_datos_json(fila.get('imagen', ''))
         origen = limpiar_datos_json(fila.get('origen', ''))
+        coordenadas = cache_coordenadas.get(str(ubicacion).strip()) if ubicacion else None
+        latitud, longitud = coordenadas if coordenadas else (None, None)
 
         try:
             # Comprobamos si existe (Nota: pasamos la variable entre corchetes [titulo])
@@ -110,9 +177,9 @@ def fusionar_datos():
             if len(resultado.rows) == 0:
                 # CASO 1: ES NUEVA
                 client.execute("""
-                    INSERT INTO carreras (fecha, titulo, ubicacion, url_inscripcion, url_ficha, imagen, origen, publicada) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 0)
-                """, [fecha, titulo, ubicacion, url_inscripcion, url_ficha, imagen, origen])
+                    INSERT INTO carreras (fecha, titulo, ubicacion, url_inscripcion, url_ficha, imagen, origen, publicada, latitud, longitud)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+                """, [fecha, titulo, ubicacion, url_inscripcion, url_ficha, imagen, origen, latitud, longitud])
                 contador_nuevas += 1
 
             else:
@@ -123,15 +190,17 @@ def fusionar_datos():
                 if imagen_actual_db == IMAGEN_DEFECTO_URL_ALCANZA:
                     client.execute("""
                         UPDATE carreras 
-                        SET fecha = ?, ubicacion = ?, url_ficha = ?, imagen = ?, origen = ?, url_inscripcion = ? 
+                        SET fecha = ?, ubicacion = ?, url_ficha = ?, imagen = ?, origen = ?, url_inscripcion = ?,
+                            latitud = COALESCE(?, latitud), longitud = COALESCE(?, longitud)
                         WHERE titulo = ?
-                    """, [fecha, ubicacion, url_ficha, imagen, origen, url_inscripcion, titulo])
+                    """, [fecha, ubicacion, url_ficha, imagen, origen, url_inscripcion, latitud, longitud, titulo])
                 else:
                     client.execute("""
                         UPDATE carreras 
-                        SET fecha = ?, ubicacion = ?, url_ficha = ?, origen = ?, url_inscripcion = ? 
+                        SET fecha = ?, ubicacion = ?, url_ficha = ?, origen = ?, url_inscripcion = ?,
+                            latitud = COALESCE(?, latitud), longitud = COALESCE(?, longitud)
                         WHERE titulo = ?
-                    """, [fecha, ubicacion, url_ficha, origen, url_inscripcion, titulo])
+                    """, [fecha, ubicacion, url_ficha, origen, url_inscripcion, latitud, longitud, titulo])
 
                 contador_actualizadas += 1
 
