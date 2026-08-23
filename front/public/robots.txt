@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://carreras-murcia.vercel.app/sitemap.xml
+
