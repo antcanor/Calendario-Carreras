@@ -200,10 +200,15 @@ const imagenSEO = carrera.imagen || 'https://calendario-carreras.vercel.app/asse
       .footer-link { display:inline-flex; align-items:center; gap:.45rem; color:var(--ink); text-decoration:none; font-weight:700; border-bottom:1px solid var(--ink); padding-bottom:2px; transition:opacity .18s; }
       .footer-link:hover { opacity:.65; }
 
+      .scroll-top-btn { position:fixed; bottom:2rem; right:2rem; width:3rem; height:3rem; background:var(--ink); color:var(--paper); border:2px solid var(--acid); display:flex; align-items:center; justify-content:center; font:700 1.25rem 'Archivo Black',sans-serif; cursor:pointer; z-index:99; opacity:0; visibility:hidden; transform:translateY(12px); transition:all .22s ease; box-shadow:0 6px 18px rgba(0,0,0,.25); }
+      .scroll-top-btn.visible { opacity:1; visibility:visible; transform:translateY(0); }
+      .scroll-top-btn:hover { background:var(--acid); color:var(--ink); border-color:var(--ink); }
+
       @media (max-width:850px) {
         .race-hero { grid-template-columns:1fr; }
         .meta-box-grid { grid-template-columns:1fr; }
         .footer { flex-direction:column; align-items:flex-start; }
+        .scroll-top-btn { bottom:1.25rem; right:1.25rem; width:2.65rem; height:2.65rem; font-size:1.05rem; }
       }
     </style>
   </head>
@@ -353,6 +358,7 @@ const imagenSEO = carrera.imagen || 'https://calendario-carreras.vercel.app/asse
         </a>
       </div>
     </footer>
+    <button id="scroll-top" class="scroll-top-btn" aria-label="Volver arriba" title="Volver al principio">↑</button>
 
     <Analytics />
 
@@ -415,6 +421,20 @@ const imagenSEO = carrera.imagen || 'https://calendario-carreras.vercel.app/asse
           setInterval(updateCountdown, 1000);
         }
       }
+
+      // --- Volver Arriba ---
+      const scrollTopBtn = document.getElementById('scroll-top');
+      window.addEventListener('scroll', () => {
+        if (window.scrollY > 350) {
+          scrollTopBtn?.classList.add('visible');
+        } else {
+          scrollTopBtn?.classList.remove('visible');
+        }
+      }, { passive: true });
+
+      scrollTopBtn?.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
     </script>
   </body>
 </html>
