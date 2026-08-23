@@ -155,10 +155,13 @@ const imagenSEO = carrera.imagen || 'https://calendario-carreras.vercel.app/asse
       .meta-box span { display:block; font:500 .68rem 'DM Mono',monospace; color:#5b5d5a; text-transform:uppercase; letter-spacing:.06em; margin-bottom:.35rem; }
       .meta-box strong { font-size:1.15rem; font-weight:700; line-height:1.2; color:var(--ink); }
 
-      .actions-container { display:flex; flex-direction:column; gap:.75rem; margin-top:2rem; }
+      .actions-container { display:flex; flex-direction:column; gap:.85rem; margin-top:2rem; }
+      .main-buttons-grid { display:flex; flex-direction:column; gap:.65rem; }
       .btn-main { display:flex; align-items:center; justify-content:center; gap:.6rem; padding:1.15rem 1.5rem; font:700 .85rem 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.05em; text-decoration:none; transition:.2s; }
       .btn-main.primary { background:var(--acid); color:var(--ink); border:2px solid var(--acid); font-size:.95rem; }
       .btn-main.primary:hover { background:var(--ink); color:var(--acid); border-color:var(--ink); }
+      .btn-main.info-btn { background:var(--ink); color:var(--paper); border:2px solid var(--ink); font-size:.9rem; }
+      .btn-main.info-btn:hover { background:transparent; color:var(--ink); }
       .btn-group-secondary { display:grid; grid-template-columns:repeat(auto-fit,minmax(10rem,1fr)); gap:.65rem; }
       .btn-secondary { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; padding:.85rem 1rem; border:1px solid var(--ink); text-decoration:none; font:500 .72rem 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.04em; transition:.18s; background:transparent; color:var(--ink); }
       .btn-secondary:hover { background:var(--ink); color:var(--paper); }
@@ -243,15 +246,18 @@ const imagenSEO = carrera.imagen || 'https://calendario-carreras.vercel.app/asse
           </div>
 
           <div class="actions-container">
-            {carrera.url_inscripcion ? (
-              <a class="btn-main primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer">
-                Inscripciones Oficiales ↗
-              </a>
-            ) : carrera.url_ficha ? (
-              <a class="btn-main primary" href={carrera.url_ficha} target="_blank" rel="noopener noreferrer">
-                Más Información y Ficha ↗
-              </a>
-            ) : null}
+            <div class="main-buttons-grid">
+              {carrera.url_inscripcion && (
+                <a class="btn-main primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer">
+                  <i class="bi bi-ticket-perforated"></i> Inscripciones Oficiales ↗
+                </a>
+              )}
+              {carrera.url_ficha && (
+                <a class="btn-main info-btn" href={carrera.url_ficha} target="_blank" rel="noopener noreferrer">
+                  <i class="bi bi-info-circle"></i> Información y Reglamento ↗
+                </a>
+              )}
+            </div>
 
             <div class="btn-group-secondary">
               <a class="btn-secondary" href={calUrl} target="_blank" rel="noopener noreferrer" title="Añadir a Google Calendar">
