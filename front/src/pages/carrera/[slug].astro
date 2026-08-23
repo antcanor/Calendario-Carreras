@@ -95,6 +95,50 @@ const urlPagina = `https://carreras-murcia.vercel.app/carrera/${slug}`;
 const tituloSEO = `${carrera.titulo} (${fechaInfo.completa}) — Calendario Murcia Running`;
 const descripcionSEO = `Toda la información sobre ${carrera.titulo}: fecha (${fechaInfo.completa}), ubicación (${carrera.ubicacion}), previsión meteorológica, mapa e inscripciones oficiales.`;
 const imagenSEO = carrera.imagen || 'https://carreras-murcia.vercel.app/assets/og-image.png';
+
+const schemaEvent = {
+  "@context": "https://schema.org",
+  "@type": "SportsEvent",
+  "name": carrera.titulo,
+  "description": descripcionSEO,
+  "startDate": `${carrera.fecha}T09:00:00+02:00`,
+  "endDate": `${carrera.fecha}T14:00:00+02:00`,
+  "eventStatus": "https://schema.org/EventScheduled",
+  "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+  "location": {
+    "@type": "Place",
+    "name": carrera.ubicacion || "Región de Murcia",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": carrera.ubicacion || "Murcia",
+      "addressRegion": "Región de Murcia",
+      "addressCountry": "ES"
+    },
+    ...(carrera.latitud && carrera.longitud ? {
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": Number(carrera.latitud),
+        "longitude": Number(carrera.longitud)
+      }
+    } : {})
+  },
+  "image": [imagenSEO],
+  "organizer": {
+    "@type": "Organization",
+    "name": carrera.origen || "Calendario Murcia Running",
+    "url": "https://carreras-murcia.vercel.app"
+  },
+  ...(carrera.url_inscripcion ? {
+    "offers": {
+      "@type": "Offer",
+      "url": carrera.url_inscripcion,
+      "price": "0",
+      "priceCurrency": "EUR",
+      "availability": "https://schema.org/InStock",
+      "validFrom": hoy
+    }
+  } : {})
+};
 ---
 
 <!doctype html>
@@ -105,6 +149,9 @@ const imagenSEO = carrera.imagen || 'https://carreras-murcia.vercel.app/assets/o
     <title>{tituloSEO}</title>
     <meta name="description" content={descripcionSEO} />
     <link rel="canonical" href={urlPagina} />
+
+    <!-- Google Structured Data / Rich Snippets -->
+    <script type="application/ld+json" set:html={JSON.stringify(schemaEvent)} />
 
     <!-- Open Graph / WhatsApp / Facebook -->
     <meta property="og:type" content="article" />

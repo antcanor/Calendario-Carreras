@@ -120,6 +120,34 @@ if (carrerasConClima.length > 0) {
 }
 
 const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
+
+const schemaIndex = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "Calendario de Carreras de la Región de Murcia",
+  "description": "El índice independiente de carreras populares, trail y maratón de la Región de Murcia.",
+  "url": "https://carreras-murcia.vercel.app/",
+  "itemListElement": carreras.slice(0, 30).map((c, index) => ({
+    "@type": "ListItem",
+    "position": index + 1,
+    "item": {
+      "@type": "SportsEvent",
+      "name": c.titulo,
+      "startDate": `${c.fecha}T09:00:00+02:00`,
+      "url": `https://carreras-murcia.vercel.app/carrera/${generarSlug(c.titulo, c.fecha)}`,
+      "location": {
+        "@type": "Place",
+        "name": c.ubicacion || "Región de Murcia",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": c.ubicacion || "Murcia",
+          "addressRegion": "Región de Murcia",
+          "addressCountry": "ES"
+        }
+      }
+    }
+  }))
+};
 ---
 
 <html lang="es">
@@ -131,6 +159,9 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
     <meta name="description" content="El índice independiente de carreras populares, trail y maratón de la Región de Murcia. Fechas, ubicaciones, clima e inscripciones." />
     <meta name="theme-color" content="#121315" />
     <link rel="canonical" href="https://carreras-murcia.vercel.app/" />
+
+    <!-- Google Structured Data / Rich Snippets -->
+    <script type="application/ld+json" set:html={JSON.stringify(schemaIndex)} />
 
     <!-- Open Graph / Facebook / WhatsApp -->
     <meta property="og:type" content="website" />
