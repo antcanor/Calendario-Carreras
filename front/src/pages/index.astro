@@ -46,7 +46,9 @@ const marcadoresMapa = carreras
   .map((carrera) => ({
     titulo: carrera.titulo,
     ubicacion: carrera.ubicacion,
-    fecha: fecha(carrera.fecha).completa,
+    fechaFormateada: fecha(carrera.fecha).completa,
+    mes: carrera.fecha.substring(0, 7),
+    search: `${carrera.titulo} ${carrera.ubicacion}`,
     latitud: Number(carrera.latitud),
     longitud: Number(carrera.longitud),
     enlace: carrera.url_ficha || carrera.url_inscripcion || '',
@@ -157,8 +159,34 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
       .hero-weather .weather-pill { color:#deded8; font-size:.68rem; }
       .marquee { display:flex; justify-content:space-between; align-items:end; position:relative; z-index:1; padding-top:2rem; color:#afafa9; border-top:1px solid rgba(255,255,255,.2); } .scroll-cue { color:var(--acid); text-decoration:none; }
       main { padding:clamp(4rem,9vw,8rem) clamp(1.1rem,4vw,4rem); max-width:1600px; margin:auto; } .index-head { display:grid; grid-template-columns:1fr auto; gap:2rem; padding-bottom:2rem; border-bottom:2px solid var(--ink); align-items:end; } h2 { max-width:950px; margin:.5rem 0 0; font:clamp(3.2rem,8vw,8rem)/.8 'Archivo Black',sans-serif; letter-spacing:-.09em; text-transform:uppercase; } .counter { text-align:right; padding-bottom:.45rem; }
-      .controls { padding:1.35rem 0 1.8rem; border-bottom:1px solid var(--line); } .search { width:100%; margin-bottom:.8rem; padding:.82rem 0; border:0; border-bottom:2px solid var(--ink); border-radius:0; outline:0; color:var(--ink); background:transparent; font:500 1rem 'DM Mono',monospace; } .search::placeholder { color:#747570; } .search:focus { border-color:var(--acid); } .filters { display:flex; flex-wrap:wrap; gap:.45rem; } .filter { appearance:none; padding:.62rem .8rem; background:transparent; border:1px solid var(--line); border-radius:0; color:var(--ink); cursor:pointer; transition:.18s; } .filter:hover, .filter.active { background:var(--ink); border-color:var(--ink); color:var(--acid); }
-      .race-list { display:grid; } .race { display:grid; grid-template-columns:5.2rem 5.5rem minmax(0,1fr) minmax(9rem,.55fr) auto; align-items:center; gap:1.4rem; padding:1.15rem 0; border-bottom:1px solid var(--line); transition:padding .22s,background .22s; } .race[hidden] { display:none; } .race:hover { padding-left:1rem; padding-right:1rem; background:var(--acid); } .race-image { width:5.5rem; height:5.5rem; overflow:hidden; background:#292a2b; } .race-image img { width:100%; height:100%; object-fit:cover; filter:grayscale(1); transition:filter .2s,transform .25s; } .race:hover .race-image img { filter:grayscale(0); transform:scale(1.06); } .race-image i { display:grid; height:100%; place-items:center; color:var(--acid); font-size:1.25rem; } .date { font:clamp(2.6rem,4vw,4.8rem)/.8 'Archivo Black',sans-serif; letter-spacing:-.08em; } .date span { display:block; margin-top:.45rem; font:500 .65rem 'DM Mono',monospace; letter-spacing:.08em; } .race-title { margin:0; font-size:clamp(1.2rem,2.2vw,2rem); line-height:1.05; letter-spacing:-.045em; font-weight:700; } .race-place { margin:.35rem 0 0; color:#5b5d5a; font-size:.87rem; } .race-meta { font:500 .68rem/1.55 'DM Mono',monospace; color:#5b5d5a; text-transform:uppercase; } .race-links { display:flex; align-items:center; justify-content:flex-end; gap:.5rem; } .action { display:inline-flex; align-items:center; justify-content:center; min-width:2.55rem; height:2.55rem; padding:0 .85rem; border:1px solid var(--ink); font:500 .68rem 'DM Mono',monospace; text-decoration:none; text-transform:uppercase; letter-spacing:.04em; transition:.18s; white-space:nowrap; } .action:hover { color:var(--paper); background:var(--ink); } .action.primary { color:var(--ink); background:var(--acid); border-color:var(--acid); } .action.primary:hover { background:var(--ink); color:var(--acid); }
+      .controls { padding:1.35rem 0 1.8rem; border-bottom:1px solid var(--line); }
+      .search { width:100%; margin-bottom:.8rem; padding:.82rem 0; border:0; border-bottom:2px solid var(--ink); border-radius:0; outline:0; color:var(--ink); background:transparent; font:500 1rem 'DM Mono',monospace; }
+      .search::placeholder { color:#747570; }
+      .search:focus { border-color:var(--acid); }
+      .filters { display:flex; flex-wrap:wrap; gap:.45rem; }
+      .filter { appearance:none; padding:.62rem .8rem; background:transparent; border:1px solid var(--line); border-radius:0; color:var(--ink); cursor:pointer; transition:.18s; }
+      .filter:hover, .filter.active { background:var(--ink); border-color:var(--ink); color:var(--acid); }
+      .race-list { display:grid; }
+      .race { display:grid; grid-template-columns:5.2rem 5.5rem minmax(0,1fr) minmax(9rem,.55fr) auto; align-items:center; gap:1.4rem; padding:1.15rem 0; border-bottom:1px solid var(--line); transition:padding .22s,background .22s; }
+      .race[hidden] { display:none; }
+      .race:hover { padding-left:1rem; padding-right:1rem; background:var(--acid); }
+      .race-image { width:5.5rem; height:5.5rem; overflow:hidden; background:#292a2b; flex-shrink:0; }
+      .race-image img { width:100%; height:100%; object-fit:cover; filter:grayscale(1); transition:filter .2s,transform .25s; display:block; }
+      .race:hover .race-image img { filter:grayscale(0); transform:scale(1.06); }
+      .race-image i { display:grid; height:100%; place-items:center; color:var(--acid); font-size:1.25rem; }
+      .date { font:clamp(2.6rem,4vw,4.8rem)/.8 'Archivo Black',sans-serif; letter-spacing:-.08em; }
+      .date span { display:block; margin-top:.45rem; font:500 .65rem 'DM Mono',monospace; letter-spacing:.08em; }
+      .race-title { margin:0; font-size:clamp(1.2rem,2.2vw,2rem); line-height:1.05; letter-spacing:-.045em; font-weight:700; }
+      .race-place { margin:.35rem 0 0; color:#5b5d5a; font-size:.87rem; cursor:pointer; transition:color .18s; display:block; width:fit-content; }
+      .race-place:hover { color:var(--acid); text-decoration:underline; }
+      .race:hover .race-place { color:var(--ink); font-weight:500; }
+      .race:hover .race-place:hover { color:var(--paper); }
+      .race-meta { font:500 .68rem/1.55 'DM Mono',monospace; color:#5b5d5a; text-transform:uppercase; }
+      .race-links { display:flex; align-items:center; justify-content:flex-end; gap:.5rem; }
+      .action { display:inline-flex; align-items:center; justify-content:center; min-width:2.55rem; height:2.55rem; padding:0 .85rem; border:1px solid var(--ink); font:500 .68rem 'DM Mono',monospace; text-decoration:none; text-transform:uppercase; letter-spacing:.04em; transition:.18s; white-space:nowrap; }
+      .action:hover { color:var(--paper); background:var(--ink); }
+      .action.primary { color:var(--ink); background:var(--acid); border-color:var(--acid); }
+      .action.primary:hover { background:var(--ink); color:var(--acid); }
       .action.cal-action { border-color:var(--line); gap:.35rem; }
       .action.cal-action:hover { background:var(--ink); color:var(--acid); border-color:var(--ink); }
       .action.cal-action i { font-size:.78rem; }
@@ -171,9 +199,16 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
       .race:hover .race-weather .weather-rain { color:#38bdf8; }
       .race-weather .weather-wind { color:#5b5d5a; }
       .race:hover .race-weather .weather-wind { color:#c3c3bd; }
-      .empty { padding:4rem 1rem; text-align:center; border-bottom:1px solid var(--line); font-size:1.1rem; } .footer { padding:1.5rem clamp(1.1rem,4vw,4rem); display:flex; justify-content:space-between; background:var(--acid); font:500 .68rem 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; }
+      .empty { padding:4rem 1rem; text-align:center; border-bottom:1px solid var(--line); font-size:1.1rem; }
+      .footer { padding:1.5rem clamp(1.1rem,4vw,4rem); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1.2rem; background:var(--acid); color:var(--ink); font:500 .68rem 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; }
+      .footer-brand { display:flex; align-items:center; flex-wrap:wrap; gap:1rem clamp(1rem,2vw,2.5rem); }
+      .footer-tagline { opacity:.85; }
+      .footer-links { display:flex; align-items:center; gap:1.2rem; }
+      .footer-link { display:inline-flex; align-items:center; gap:.45rem; color:var(--ink); text-decoration:none; font-weight:700; border-bottom:1px solid var(--ink); padding-bottom:2px; transition:opacity .18s; }
+      .footer-link:hover { opacity:.65; }
+      .footer-link i { font-size:.85rem; }
       .alerta { margin-top:clamp(4rem,8vw,7rem); padding:clamp(1.4rem,4vw,3rem); display:grid; grid-template-columns:minmax(0,1fr) minmax(18rem,.82fr); gap:3rem; align-items:end; background:var(--ink); color:var(--paper); position:relative; overflow:hidden; } .alerta::before { content:'KM'; position:absolute; right:-.08em; top:-.28em; color:rgba(255,255,255,.04); font:clamp(9rem,21vw,22rem)/1 'Archivo Black',sans-serif; letter-spacing:-.1em; pointer-events:none; } .alerta-content, .alerta-form { position:relative; z-index:1; } .alerta .label { color:var(--acid); } .alerta h3 { max-width:700px; margin:.7rem 0 0; font:clamp(2.7rem,5vw,5.5rem)/.84 'Archivo Black',sans-serif; letter-spacing:-.075em; text-transform:uppercase; } .alerta p { max-width:30rem; margin:1.2rem 0 0; color:#c3c3bd; line-height:1.5; } .alerta-form label { display:block; margin-bottom:.65rem; color:var(--acid); font:500 .68rem 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; } .alerta-fields { display:flex; gap:.5rem; } .alerta-fields input { min-width:0; flex:1; padding:.9rem 0; color:var(--paper); background:transparent; border:0; border-bottom:1px solid #898984; border-radius:0; outline:0; font:500 .9rem 'DM Mono',monospace; } .alerta-fields input:focus { border-color:var(--acid); } .consent { display:flex; align-items:flex-start; gap:.55rem; margin-top:1rem; color:#b5b5af; font-size:.75rem; line-height:1.4; } .consent input { width:1rem; height:1rem; margin:.08rem 0 0; accent-color:var(--acid); } .consent label { margin:0; color:#b5b5af; font:400 .75rem/1.4 'DM Sans',sans-serif; letter-spacing:0; text-transform:none; } .alerta button { padding:.88rem 1rem; border:1px solid var(--acid); color:var(--ink); background:var(--acid); cursor:pointer; font:500 .7rem 'DM Mono',monospace; letter-spacing:.05em; text-transform:uppercase; transition:.18s; } .alerta button:hover { color:var(--acid); background:transparent; } .alerta button:disabled { cursor:wait; opacity:.65; } .alerta small { display:block; margin-top:.85rem; color:#898984; font-size:.72rem; line-height:1.4; } .form-message { min-height:1.4rem; margin:.8rem 0 0; color:var(--acid); font-size:.8rem; } .form-message.error { color:#ff9a7c; }
-      @media (max-width:760px) { .masthead { min-height:auto; } .navline { align-items:flex-start; } .nav-index { align-items:flex-end; flex-direction:column; gap:.45rem; } .hero { grid-template-columns:1fr; gap:2rem; } .hero-copy { padding-top:4.5rem; } h1 { font-size:clamp(4rem,18vw,7rem); } .next-event { min-height:18rem; } .index-head { grid-template-columns:1fr; gap:.5rem; } .counter { text-align:left; } .race { grid-template-columns:4.2rem 3.5rem minmax(0,1fr) auto; gap:.75rem; } .race-image { width:3.5rem; height:3.5rem; } .race-meta { display:none; } .race-links { flex-direction:column; gap:.35rem; } .action { min-width:2.4rem; padding:0 .55rem; } .alerta { grid-template-columns:1fr; gap:1.8rem; } .alerta-fields { display:block; } .alerta button { width:100%; margin-top:1rem; } .footer { gap:1rem; flex-direction:column; } }
+      @media (max-width:760px) { .masthead { min-height:auto; } .navline { align-items:flex-start; } .nav-index { align-items:flex-end; flex-direction:column; gap:.45rem; } .hero { grid-template-columns:1fr; gap:2rem; } .hero-copy { padding-top:4.5rem; } h1 { font-size:clamp(4rem,18vw,7rem); } .next-event { min-height:18rem; } .index-head { grid-template-columns:1fr; gap:.5rem; } .counter { text-align:left; } .race { grid-template-columns:4.2rem 3.5rem minmax(0,1fr) auto; gap:.75rem; } .race-image { width:3.5rem; height:3.5rem; } .race-meta { display:none; } .race-links { flex-direction:column; gap:.35rem; } .action { min-width:2.4rem; padding:0 .55rem; } .alerta { grid-template-columns:1fr; gap:1.8rem; } .alerta-fields { display:block; } .alerta button { width:100%; margin-top:1rem; } .footer { gap:1rem; flex-direction:column; align-items:flex-start; } }
       .map-section { margin-top:clamp(4rem,8vw,7rem); } .map-head { display:flex; align-items:end; justify-content:space-between; gap:1rem; margin-bottom:1.25rem; } .map-head h3 { margin:0; font:clamp(2.2rem,5vw,4.5rem)/.85 'Archivo Black',sans-serif; letter-spacing:-.075em; text-transform:uppercase; } .map-head p { max-width:22rem; margin:0; color:#5b5d5a; font-size:.88rem; } #race-map { height:clamp(24rem,48vw,38rem); background:#d8d7d1; border:1px solid var(--ink); } .map-empty { display:grid; min-height:24rem; place-items:center; padding:2rem; color:#5b5d5a; background:#d8d7d1; border:1px solid var(--ink); text-align:center; } .map-empty strong { display:block; margin-bottom:.4rem; color:var(--ink); font:1.5rem 'Archivo Black',sans-serif; text-transform:uppercase; } .leaflet-popup-content-wrapper { border-radius:0; box-shadow:none; font-family:'DM Sans',sans-serif; } .leaflet-popup-content { margin:1rem 1.1rem; } .map-popup-title { display:block; margin-bottom:.3rem; font-weight:700; line-height:1.1; } .map-popup-meta { display:block; color:#5b5d5a; font-size:.78rem; } .map-popup-link { display:inline-block; margin-top:.7rem; color:var(--ink); font:500 .68rem 'DM Mono',monospace; text-transform:uppercase; }
     </style>
   </head>
@@ -193,7 +228,7 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
       <div class="index-head"><div><span class="label" style="color: var(--ink)">01 / Calendario</span><h2>El próximo<br />dorsal.</h2></div><p class="counter">{carreras.length.toString().padStart(2, '0')} carreras<br />por descubrir</p></div>
       <div class="controls"><label class="visually-hidden" for="race-search">Buscar carrera</label><input class="search" id="race-search" type="search" placeholder="Buscar por carrera o ubicación…" autocomplete="off" /><div class="filters" aria-label="Filtrar calendario por mes"><button class="filter active" data-filter="all">Todo el calendario</button>{mesesDisponibles.map((mes) => <button class="filter" data-filter={mes}>{etiquetaMes(mes)}</button>)}</div></div>
       <section class="race-list" aria-label="Listado de carreras">
-        {carreras.map((carrera, indice) => { const cuando = fecha(carrera.fecha); const mesFiltro = carrera.fecha.substring(0, 7); const clima = mapaClima.get(carrera.titulo); return <article class="race" data-mes={mesFiltro} data-search={`${carrera.titulo} ${carrera.ubicacion}`}><div class="date">{cuando.dia}<span>{cuando.mes}</span></div><div class="race-image">{carrera.imagen ? <img src={carrera.imagen} alt="" loading="lazy" /> : <i class="bi bi-flag-fill"></i>}</div><div><p class="race-title">{carrera.titulo}</p><p class="race-place"><i class="bi bi-geo-alt me-1"></i>{carrera.ubicacion}</p>{clima && <div class="race-weather" title={`Previsión día de carrera: ${clima.texto}, viento ${clima.viento} km/h`}><span class="weather-icon">{clima.icono}</span><span class="weather-temp">{clima.tempMax}°C</span><span class="weather-rain">💧 {clima.lluvia}%</span><span class="weather-wind">💨 {clima.viento} km/h</span></div>}</div><div class="race-meta">#{String(indice + 1).padStart(2, '0')}<br />{carrera.origen || 'Agenda Murcia'}</div><div class="race-links"><a class="action cal-action" href={crearGoogleCalendarUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Añadir ${carrera.titulo} a Google Calendar`} title="Añadir a Google Calendar"><i class="bi bi-calendar-plus"></i> Cal</a>{carrera.url_ficha && <a class="action" href={carrera.url_ficha} target="_blank" rel="noopener noreferrer" aria-label={`Ver detalles de ${carrera.titulo}`}>Info</a>}{carrera.url_inscripcion && <a class="action primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" aria-label={`Inscribirse a ${carrera.titulo}`}>Ir ↗</a>}</div></article>; })}
+        {carreras.map((carrera, indice) => { const cuando = fecha(carrera.fecha); const mesFiltro = carrera.fecha.substring(0, 7); const clima = mapaClima.get(carrera.titulo); return <article class="race" data-mes={mesFiltro} data-search={`${carrera.titulo} ${carrera.ubicacion}`}><div class="date">{cuando.dia}<span>{cuando.mes}</span></div><div class="race-image">{carrera.imagen ? <img src={carrera.imagen} alt="" loading="lazy" /> : <i class="bi bi-flag-fill"></i>}</div><div><p class="race-title">{carrera.titulo}</p><p class="race-place" data-locate={carrera.titulo} title="Ver ubicación en el mapa"><i class="bi bi-geo-alt me-1"></i>{carrera.ubicacion}</p>{clima && <div class="race-weather" title={`Previsión día de carrera: ${clima.texto}, viento ${clima.viento} km/h`}><span class="weather-icon">{clima.icono}</span><span class="weather-temp">{clima.tempMax}°C</span><span class="weather-rain">💧 {clima.lluvia}%</span><span class="weather-wind">💨 {clima.viento} km/h</span></div>}</div><div class="race-meta">#{String(indice + 1).padStart(2, '0')}<br />{carrera.origen || 'Agenda Murcia'}</div><div class="race-links"><a class="action cal-action" href={crearGoogleCalendarUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Añadir ${carrera.titulo} a Google Calendar`} title="Añadir a Google Calendar"><i class="bi bi-calendar-plus"></i> Cal</a>{carrera.url_ficha && <a class="action" href={carrera.url_ficha} target="_blank" rel="noopener noreferrer" aria-label={`Ver detalles de ${carrera.titulo}`}>Info</a>}{carrera.url_inscripcion && <a class="action primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" aria-label={`Inscribirse a ${carrera.titulo}`}>Ir ↗</a>}</div></article>; })}
       </section>
       <div class="empty" id="no-results" hidden>No hay carreras con esos criterios. Prueba con otro nombre, ubicación o mes.</div>
       {carreras.length === 0 && <div class="empty">Aún no hay próximas pruebas publicadas. Vuelve pronto.</div>}
@@ -203,15 +238,74 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
         <form class="alerta-form" id="alerta-form"><label for="alerta-email">Tu email</label><div class="alerta-fields"><input id="alerta-email" name="email" type="email" placeholder="corredor@ejemplo.com" autocomplete="email" required /><button type="submit">Quiero recibirla ↗</button></div><div class="consent"><input id="alerta-consentimiento" name="consentimiento" type="checkbox" required /><label for="alerta-consentimiento">Acepto recibir la alerta mensual de carreras por email.</label></div><p class="form-message" id="alerta-mensaje" role="status" aria-live="polite"></p><small>Una alerta al mes. Puedes darte de baja cuando quieras.</small></form>
       </section>
     </main>
-    <footer class="footer"><span>CALENDARIO/MURCIA/RUNNING © {new Date().getFullYear()}</span><span>Tu próximo kilómetro empieza aquí.</span></footer>
+    <footer class="footer">
+      <div class="footer-brand">
+        <span>CALENDARIO/MURCIA/RUNNING © {new Date().getFullYear()}</span>
+        <span class="footer-tagline">Tu próximo kilómetro empieza aquí.</span>
+      </div>
+      <div class="footer-links">
+        <a class="footer-link" href="https://instagram.com/calendariomurciarunning/" target="_blank" rel="noopener noreferrer" aria-label="Síguenos en Instagram">
+          <i class="bi bi-instagram"></i> Instagram
+        </a>
+      </div>
+    </footer>
     <Analytics />
     {marcadoresMapa.length > 0 && <><script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script><script define:vars={{ marcadoresMapa }}>
       const escapeHtml = (value) => String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
-      const map = L.map('race-map', { scrollWheelZoom: false });
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
-      const bounds = [];
-      marcadoresMapa.forEach((carrera) => { const point = [carrera.latitud, carrera.longitud]; bounds.push(point); const link = carrera.enlace ? `<a class="map-popup-link" target="_blank" rel="noopener noreferrer" href="${escapeHtml(carrera.enlace)}">Ver carrera ↗</a>` : ''; const calBtn = carrera.calUrl ? `<a class="map-popup-link" target="_blank" rel="noopener noreferrer" href="${escapeHtml(carrera.calUrl)}" style="margin-left:0.75rem;"><i class="bi bi-calendar-plus"></i> + Cal</a>` : ''; L.circleMarker(point, { radius: 8, color: '#121315', weight: 2, fillColor: '#ff5a1f', fillOpacity: 1 }).addTo(map).bindPopup(`<strong class="map-popup-title">${escapeHtml(carrera.titulo)}</strong><span class="map-popup-meta">${escapeHtml(carrera.fecha)} · ${escapeHtml(carrera.ubicacion)}</span>${link}${calBtn}`); });
-      if (bounds.length === 1) map.setView(bounds[0], 12); else map.fitBounds(bounds, { padding: [36, 36], maxZoom: 11 });
+      const mapElement = document.getElementById('race-map');
+      if (mapElement) {
+        const map = L.map('race-map', { scrollWheelZoom: false });
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+
+        const markerItems = marcadoresMapa.map((carrera) => {
+          const point = [carrera.latitud, carrera.longitud];
+          const link = carrera.enlace ? `<a class="map-popup-link" target="_blank" rel="noopener noreferrer" href="${escapeHtml(carrera.enlace)}">Ver carrera ↗</a>` : '';
+          const calBtn = carrera.calUrl ? `<a class="map-popup-link" target="_blank" rel="noopener noreferrer" href="${escapeHtml(carrera.calUrl)}" style="margin-left:0.75rem;"><i class="bi bi-calendar-plus"></i> + Cal</a>` : '';
+          const marker = L.circleMarker(point, { radius: 8, color: '#121315', weight: 2, fillColor: '#ff5a1f', fillOpacity: 1 })
+            .addTo(map)
+            .bindPopup(`<strong class="map-popup-title">${escapeHtml(carrera.titulo)}</strong><span class="map-popup-meta">${escapeHtml(carrera.fechaFormateada)} · ${escapeHtml(carrera.ubicacion)}</span>${link}${calBtn}`);
+          return { marker, carrera, point };
+        });
+
+        const allPoints = markerItems.map((m) => m.point);
+        if (allPoints.length === 1) map.setView(allPoints[0], 12);
+        else if (allPoints.length > 1) map.fitBounds(allPoints, { padding: [36, 36], maxZoom: 11 });
+
+        window.__raceMapController = {
+          filterMarkers: (query, selectedMonth) => {
+            const norm = (v) => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+            const normQuery = norm(query);
+            const visibleBounds = [];
+
+            markerItems.forEach(({ marker, carrera, point }) => {
+              const matchesMonth = selectedMonth === 'all' || carrera.mes === selectedMonth;
+              const matchesSearch = !normQuery || norm(carrera.search).includes(normQuery);
+              const visible = matchesMonth && matchesSearch;
+
+              if (visible) {
+                if (!map.hasLayer(marker)) map.addLayer(marker);
+                visibleBounds.push(point);
+              } else {
+                if (map.hasLayer(marker)) map.removeLayer(marker);
+              }
+            });
+
+            if (visibleBounds.length === 1) {
+              map.setView(visibleBounds[0], 12);
+            } else if (visibleBounds.length > 1) {
+              map.fitBounds(visibleBounds, { padding: [36, 36], maxZoom: 11 });
+            }
+          },
+          focusRace: (titulo) => {
+            const target = markerItems.find((item) => item.carrera.titulo === titulo);
+            if (target) {
+              if (!map.hasLayer(target.marker)) map.addLayer(target.marker);
+              map.flyTo(target.point, 13, { duration: 0.8 });
+              setTimeout(() => target.marker.openPopup(), 450);
+            }
+          }
+        };
+      }
     </script></>}
     <script>
       const buttons = document.querySelectorAll('.filter');
@@ -220,18 +314,20 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
       const empty = document.querySelector('#no-results');
       let selectedMonth = 'all';
 
-      const normalize = (value) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const normalize = (value) => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
       const updateList = () => {
-        const query = normalize(search?.value.trim() || '');
+        const query = search?.value.trim() || '';
+        const normQuery = normalize(query);
         let total = 0;
         races.forEach((race) => {
           const matchesMonth = selectedMonth === 'all' || race.dataset.mes === selectedMonth;
-          const matchesSearch = !query || normalize(race.dataset.search || '').includes(query);
+          const matchesSearch = !normQuery || normalize(race.dataset.search || '').includes(normQuery);
           const show = matchesMonth && matchesSearch;
           race.hidden = !show;
           if (show) total++;
         });
         if (empty) empty.hidden = total !== 0;
+        window.__raceMapController?.filterMarkers(query, selectedMonth);
       };
 
       buttons.forEach((button) => button.addEventListener('click', () => {
@@ -241,6 +337,17 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
         updateList();
       }));
       search?.addEventListener('input', updateList);
+
+      document.querySelectorAll('[data-locate]').forEach((placeBtn) => {
+        placeBtn.addEventListener('click', (e) => {
+          const titulo = placeBtn.getAttribute('data-locate');
+          if (titulo) {
+            document.querySelector('#mapa')?.scrollIntoView({ behavior: 'smooth' });
+            window.__raceMapController?.focusRace(titulo);
+          }
+        });
+      });
+
       const subscriptionForm = document.querySelector('#alerta-form');
       const subscriptionMessage = document.querySelector('#alerta-mensaje');
       subscriptionForm?.addEventListener('submit', async (event) => {

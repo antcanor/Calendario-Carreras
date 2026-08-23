@@ -4,4 +4,4 @@ beautifulsoup4
 thefuzz
 gunicorn
 libsql-client
-dotenv
+python-dotenv
