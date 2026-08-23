@@ -34,11 +34,20 @@ def asegurar_columnas_mapa(client):
 
 
 def geocodificar_ubicacion(ubicacion, user_agent):
-    """Devuelve latitud y longitud de una ubicación de Murcia o None si no se encuentra."""
+    """Devuelve latitud y longitud de una ubicación de Murcia (u otra provincia) o None si no se encuentra."""
+    lugar = ubicacion.strip()
+
+    if '/' in lugar:
+        nombre, provincia = (parte.strip() for parte in lugar.split('/', 1))
+        consulta = f'{nombre}, {provincia}, España'
+    else:
+        nombre = lugar
+        consulta = f'{lugar}, Región de Murcia, España'
+
     respuesta = requests.get(
         NOMINATIM_URL,
         params={
-            'q': f'{ubicacion}, Región de Murcia, España',
+            'q': consulta,
             'format': 'jsonv2',
             'limit': 1,
             'countrycodes': 'es',
@@ -48,10 +57,25 @@ def geocodificar_ubicacion(ubicacion, user_agent):
     )
     respuesta.raise_for_status()
     resultados = respuesta.json()
+
+    if (not resultados and '/' in lugar)  or (not resultados):
+        respuesta = requests.get(
+            NOMINATIM_URL,
+            params={
+                'q': f'{nombre}, España',
+                'format': 'jsonv2',
+                'limit': 1,
+                'countrycodes': 'es',
+            },
+            headers={'User-Agent': user_agent, 'Accept-Language': 'es'},
+            timeout=20,
+        )
+        respuesta.raise_for_status()
+        resultados = respuesta.json()
+
     if not resultados:
         return None
     return float(resultados[0]['lat']), float(resultados[0]['lon'])
-
 
 def fusionar_datos():
     print("🔄 Iniciando proceso de fusión...")
