@@ -52,6 +52,7 @@ const marcadoresMapa = carreras
   .map((carrera) => ({
     titulo: carrera.titulo,
     ubicacion: carrera.ubicacion,
+    fecha: carrera.fecha,
     fechaFormateada: fecha(carrera.fecha).completa,
     mes: carrera.fecha.substring(0, 7),
     search: `${carrera.titulo} ${carrera.ubicacion}`,
@@ -160,6 +161,11 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
       .navline, .marquee, .event-kicker, .counter, .filter, .date-tag { font:500 .69rem/1.2 'DM Mono',monospace; letter-spacing:.07em; text-transform:uppercase; } .navline { display:flex; align-items:center; justify-content:space-between; gap:1rem; position:relative; z-index:1; } .brand { font:1rem/1 'Archivo Black',sans-serif; text-decoration:none; letter-spacing:-.07em; } .brand span { color:var(--acid); } .nav-index { display:flex; align-items:center; gap:1.2rem; } .navlink { text-decoration:none; border-bottom:1px solid var(--acid); padding-bottom:.2rem; }
       .hero { max-width:1300px; width:100%; margin:auto; align-self:center; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr); align-items:end; gap:3rem; position:relative; z-index:1; } .hero-copy { padding-top:5rem; } .label { color:var(--acid); font:500 .72rem 'DM Mono',monospace; letter-spacing:.08em; text-transform:uppercase; } h1 { max-width:850px; margin:.55rem 0 0; font:clamp(4rem,10vw,10.5rem)/.78 'Archivo Black',sans-serif; letter-spacing:-.09em; text-transform:uppercase; } h1 i { color:var(--acid); font-style:normal; } .hero-description { max-width:31rem; margin:1.7rem 0 0; font-size:clamp(1rem,1.4vw,1.25rem); line-height:1.45; color:#c3c3bd; }
       .next-event { display:block; min-height:25rem; text-decoration:none; position:relative; background:#292a2b; overflow:hidden; } .next-event img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.72; filter:grayscale(1) contrast(1.1); transition:transform .5s ease,filter .5s ease; } .next-event:hover img { transform:scale(1.05); filter:grayscale(0) contrast(1); } .next-event::after { content:''; position:absolute; inset:0; background:linear-gradient(0deg,rgba(0,0,0,.88),transparent 68%); } .event-content { position:absolute; inset:auto 1.2rem 1.2rem; z-index:1; } .event-kicker { color:var(--acid); } .event-name { margin:.5rem 0; font-size:1.45rem; font-weight:700; line-height:1.08; } .event-place { margin:0; color:#deded8; font-size:.87rem; } .event-arrow { position:absolute; z-index:2; top:1rem; right:1rem; display:grid; place-items:center; width:2.5rem; height:2.5rem; background:var(--acid); color:var(--ink); font-size:1.3rem; border-radius:50%; }
+      .hero-countdown { display:inline-flex; align-items:center; gap:.35rem; margin-bottom:.55rem; padding:.28rem .6rem; background:rgba(18,19,21,.92); border:1px solid var(--acid); border-radius:2px; font:500 .72rem 'DM Mono',monospace; color:var(--paper); letter-spacing:.04em; text-transform:uppercase; backdrop-filter:blur(6px); width:fit-content; }
+      .cd-label { color:var(--acid); font-weight:700; margin-right:.2rem; font-size:.68rem; }
+      .cd-segment { display:inline-flex; align-items:baseline; gap:.08rem; }
+      .cd-segment strong { font-family:'Archivo Black',sans-serif; font-size:.92rem; color:#ffffff; }
+      .cd-sep { color:var(--acid); font-weight:700; opacity:.8; }
       .hero-weather { display:inline-flex; align-items:center; flex-wrap:wrap; gap:.45rem; margin-top:.7rem; padding:.32rem .65rem; background:rgba(18,19,21,.9); border:1px solid rgba(255,90,31,.5); border-radius:2px; font:500 .72rem/1.2 'DM Mono',monospace; color:var(--paper); letter-spacing:.04em; text-transform:uppercase; backdrop-filter:blur(4px); }
       .hero-weather .weather-icon { font-size:.95rem; }
       .hero-weather .weather-temp { color:var(--acid); font-weight:700; }
@@ -173,6 +179,8 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
       .filters { display:flex; flex-wrap:wrap; gap:.45rem; }
       .filter { appearance:none; padding:.62rem .8rem; background:transparent; border:1px solid var(--line); border-radius:0; color:var(--ink); cursor:pointer; transition:.18s; }
       .filter:hover, .filter.active { background:var(--ink); border-color:var(--ink); color:var(--acid); }
+      .filter.filter-express { border-color:rgba(255,90,31,.5); background:rgba(255,90,31,.06); font-weight:500; }
+      .filter.filter-express:hover, .filter.filter-express.active { background:var(--acid); border-color:var(--acid); color:var(--ink); font-weight:700; }
       .race-list { display:grid; }
       .race { display:grid; grid-template-columns:5.2rem 5.5rem minmax(0,1fr) minmax(9rem,.55fr) auto; align-items:center; gap:1.4rem; padding:1.15rem 0; border-bottom:1px solid var(--line); transition:padding .22s,background .22s; }
       .race[hidden] { display:none; }
@@ -262,16 +270,16 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
         <div class="hero-copy"><span class="label">Calendario de carreras · Región de Murcia</span><h1>Busca.<br />Corre.<br /><i>Vuelve.</i></h1><p class="hero-description">Un punto de partida para quienes llenan los domingos de kilómetros. Carreras populares, trail y retos de la Región de Murcia.</p></div>
         {destacada && <a class="next-event" href={destacada.url_ficha || destacada.url_inscripcion || '#calendario'} target={destacada.url_ficha || destacada.url_inscripcion ? '_blank' : undefined} rel="noopener noreferrer">
           {destacada.imagen && <img src={destacada.imagen} alt="" />}
-          <span class="event-arrow">↗</span><div class="event-content"><span class="event-kicker">Próxima carrera · {fecha(destacada.fecha).completa}</span><h2 class="event-name">{destacada.titulo}</h2><p class="event-place"><i class="bi bi-geo-alt me-1"></i>{destacada.ubicacion}</p>{climaDestacada && <div class="hero-weather"><span class="weather-icon">{climaDestacada.icono}</span><span class="weather-temp">{climaDestacada.tempMax}°C</span><span class="weather-pill">· {climaDestacada.texto}</span><span class="weather-pill">💧 {climaDestacada.lluvia}%</span><span class="weather-pill">💨 {climaDestacada.viento} km/h</span></div>}</div>
+          <span class="event-arrow">↗</span><div class="event-content"><div class="hero-countdown" data-date={destacada.fecha}><span class="cd-label">⏳ FALTAN</span><span class="cd-segment"><strong id="cd-days">--</strong>d</span><span class="cd-sep">:</span><span class="cd-segment"><strong id="cd-hours">--</strong>h</span><span class="cd-sep">:</span><span class="cd-segment"><strong id="cd-mins">--</strong>m</span><span class="cd-sep">:</span><span class="cd-segment"><strong id="cd-secs">--</strong>s</span></div><span class="event-kicker">Próxima carrera · {fecha(destacada.fecha).completa}</span><h2 class="event-name">{destacada.titulo}</h2><p class="event-place"><i class="bi bi-geo-alt me-1"></i>{destacada.ubicacion}</p>{climaDestacada && <div class="hero-weather"><span class="weather-icon">{climaDestacada.icono}</span><span class="weather-temp">{climaDestacada.tempMax}°C</span><span class="weather-pill">· {climaDestacada.texto}</span><span class="weather-pill">💧 {climaDestacada.lluvia}%</span><span class="weather-pill">💨 {climaDestacada.viento} km/h</span></div>}</div>
         </a>}
       </div>
       <div class="marquee"><span>Actualizado con carreras futuras · {carreras.length} en el radar</span><a class="scroll-cue" href="#calendario">↓ Explorar carreras</a></div>
     </header>
     <main id="calendario">
       <div class="index-head"><div><span class="label" style="color: var(--ink)">01 / Calendario</span><h2>El próximo<br />dorsal.</h2></div><p class="counter">{carreras.length.toString().padStart(2, '0')} carreras<br />por descubrir</p></div>
-      <div class="controls"><label class="visually-hidden" for="race-search">Buscar carrera</label><input class="search" id="race-search" type="search" placeholder="Buscar por carrera o ubicación…" autocomplete="off" /><div class="filters" aria-label="Filtrar calendario por mes"><button class="filter active" data-filter="all">Todo el calendario</button>{mesesDisponibles.map((mes) => <button class="filter" data-filter={mes}>{etiquetaMes(mes)}</button>)}</div></div>
+      <div class="controls"><label class="visually-hidden" for="race-search">Buscar carrera</label><input class="search" id="race-search" type="search" placeholder="Buscar por carrera o ubicación…" autocomplete="off" /><div class="filters" aria-label="Filtrar calendario"><button class="filter active" data-filter="all">Todo el calendario</button><button class="filter filter-express" data-filter="weekend">⚡ Este Finde</button><button class="filter filter-express" data-filter="15days">🔥 Próximos 15 días</button><button class="filter filter-express" data-filter="30days">📅 Próximo mes (30d)</button>{mesesDisponibles.map((mes) => <button class="filter" data-filter={mes}>{etiquetaMes(mes)}</button>)}</div></div>
       <section class="race-list" aria-label="Listado de carreras">
-        {carreras.map((carrera, indice) => { const cuando = fecha(carrera.fecha); const mesFiltro = carrera.fecha.substring(0, 7); const clima = mapaClima.get(carrera.titulo); return <article class="race" data-mes={mesFiltro} data-search={`${carrera.titulo} ${carrera.ubicacion}`}><div class="date">{cuando.dia}<span>{cuando.mes}</span></div><div class="race-image">{carrera.imagen ? <img src={carrera.imagen} alt="" loading="lazy" /> : <i class="bi bi-flag-fill"></i>}</div><div><p class="race-title">{carrera.titulo}</p><p class="race-place" data-locate={carrera.titulo} title="Ver ubicación en el mapa"><i class="bi bi-geo-alt me-1"></i>{carrera.ubicacion}</p>{clima && <div class="race-weather" title={`Previsión día de carrera: ${clima.texto}, viento ${clima.viento} km/h`}><span class="weather-icon">{clima.icono}</span><span class="weather-temp">{clima.tempMax}°C</span><span class="weather-rain">💧 {clima.lluvia}%</span><span class="weather-wind">💨 {clima.viento} km/h</span></div>}</div><div class="race-meta">#{String(indice + 1).padStart(2, '0')}<br />{carrera.origen || 'Agenda Murcia'}</div><div class="race-links"><a class="action wa-action" href={crearWhatsAppShareUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Compartir ${carrera.titulo} por WhatsApp`} title="Compartir en WhatsApp"><i class="bi bi-whatsapp"></i></a><a class="action cal-action" href={crearGoogleCalendarUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Añadir ${carrera.titulo} a Google Calendar`} title="Añadir a Google Calendar"><i class="bi bi-calendar-plus"></i> Cal</a>{carrera.url_ficha && <a class="action" href={carrera.url_ficha} target="_blank" rel="noopener noreferrer" aria-label={`Ver detalles de ${carrera.titulo}`}>Info</a>}{carrera.url_inscripcion && <a class="action primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" aria-label={`Inscribirse a ${carrera.titulo}`}>Ir ↗</a>}</div></article>; })}
+        {carreras.map((carrera, indice) => { const cuando = fecha(carrera.fecha); const mesFiltro = carrera.fecha.substring(0, 7); const clima = mapaClima.get(carrera.titulo); return <article class="race" data-mes={mesFiltro} data-fecha={carrera.fecha} data-search={`${carrera.titulo} ${carrera.ubicacion}`}><div class="date">{cuando.dia}<span>{cuando.mes}</span></div><div class="race-image">{carrera.imagen ? <img src={carrera.imagen} alt="" loading="lazy" /> : <i class="bi bi-flag-fill"></i>}</div><div><p class="race-title">{carrera.titulo}</p><p class="race-place" data-locate={carrera.titulo} title="Ver ubicación en el mapa"><i class="bi bi-geo-alt me-1"></i>{carrera.ubicacion}</p>{clima && <div class="race-weather" title={`Previsión día de carrera: ${clima.texto}, viento ${clima.viento} km/h`}><span class="weather-icon">{clima.icono}</span><span class="weather-temp">{clima.tempMax}°C</span><span class="weather-rain">💧 {clima.lluvia}%</span><span class="weather-wind">💨 {clima.viento} km/h</span></div>}</div><div class="race-meta">#{String(indice + 1).padStart(2, '0')}<br />{carrera.origen || 'Agenda Murcia'}</div><div class="race-links"><a class="action wa-action" href={crearWhatsAppShareUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Compartir ${carrera.titulo} por WhatsApp`} title="Compartir en WhatsApp"><i class="bi bi-whatsapp"></i></a><a class="action cal-action" href={crearGoogleCalendarUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Añadir ${carrera.titulo} a Google Calendar`} title="Añadir a Google Calendar"><i class="bi bi-calendar-plus"></i> Cal</a>{carrera.url_ficha && <a class="action" href={carrera.url_ficha} target="_blank" rel="noopener noreferrer" aria-label={`Ver detalles de ${carrera.titulo}`}>Info</a>}{carrera.url_inscripcion && <a class="action primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" aria-label={`Inscribirse a ${carrera.titulo}`}>Ir ↗</a>}</div></article>; })}
       </section>
       <div class="empty" id="no-results" hidden>No hay carreras con esos criterios. Prueba con otro nombre, ubicación o mes.</div>
       {carreras.length === 0 && <div class="empty">Aún no hay próximas pruebas publicadas. Vuelve pronto.</div>}
@@ -382,16 +390,58 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
         if (allPoints.length === 1) map.setView(allPoints[0], 12);
         else if (allPoints.length > 1) map.fitBounds(allPoints, { padding: [36, 36], maxZoom: 11 });
 
+        const checkFilterMatch = (dateStr, filterValue) => {
+          if (filterValue === 'all') return true;
+          if (!dateStr) return false;
+          const [y, m, d] = dateStr.split('-').map(Number);
+          const raceDate = new Date(y, m - 1, d);
+          raceDate.setHours(0, 0, 0, 0);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          if (filterValue === 'weekend') {
+            const dayOfWeek = today.getDay();
+            const startWeekend = new Date(today);
+            if (dayOfWeek === 6 || dayOfWeek === 0) {
+              startWeekend.setDate(today.getDate());
+            } else {
+              const daysToFriday = (5 - dayOfWeek + 7) % 7;
+              startWeekend.setDate(today.getDate() + daysToFriday);
+            }
+            const endWeekend = new Date(today);
+            const daysToSunday = (7 - dayOfWeek) % 7;
+            endWeekend.setDate(today.getDate() + daysToSunday);
+            endWeekend.setHours(23, 59, 59, 999);
+            return raceDate >= startWeekend && raceDate <= endWeekend;
+          }
+
+          if (filterValue === '15days') {
+            const limit = new Date(today);
+            limit.setDate(today.getDate() + 15);
+            limit.setHours(23, 59, 59, 999);
+            return raceDate >= today && raceDate <= limit;
+          }
+
+          if (filterValue === '30days') {
+            const limit = new Date(today);
+            limit.setDate(today.getDate() + 30);
+            limit.setHours(23, 59, 59, 999);
+            return raceDate >= today && raceDate <= limit;
+          }
+
+          return dateStr.substring(0, 7) === filterValue;
+        };
+
         window.__raceMapController = {
-          filterMarkers: (query, selectedMonth) => {
+          filterMarkers: (query, selectedFilter) => {
             const norm = (v) => (v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
             const normQuery = norm(query);
             const visibleBounds = [];
 
             markerItems.forEach(({ marker, carrera, point }) => {
-              const matchesMonth = selectedMonth === 'all' || carrera.mes === selectedMonth;
+              const matchesFilter = checkFilterMatch(carrera.fecha, selectedFilter);
               const matchesSearch = !normQuery || norm(carrera.search).includes(normQuery);
-              const visible = matchesMonth && matchesSearch;
+              const visible = matchesFilter && matchesSearch;
 
               if (visible) {
                 if (!map.hasLayer(marker)) map.addLayer(marker);
@@ -423,28 +473,72 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
       const races = document.querySelectorAll('.race');
       const search = document.querySelector('#race-search');
       const empty = document.querySelector('#no-results');
-      let selectedMonth = 'all';
+      let selectedFilter = 'all';
 
       const normalize = (value) => (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+      const checkListFilter = (dateStr, filterValue) => {
+        if (filterValue === 'all') return true;
+        if (!dateStr) return false;
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const raceDate = new Date(y, m - 1, d);
+        raceDate.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (filterValue === 'weekend') {
+          const dayOfWeek = today.getDay();
+          const startWeekend = new Date(today);
+          if (dayOfWeek === 6 || dayOfWeek === 0) {
+            startWeekend.setDate(today.getDate());
+          } else {
+            const daysToFriday = (5 - dayOfWeek + 7) % 7;
+            startWeekend.setDate(today.getDate() + daysToFriday);
+          }
+          const endWeekend = new Date(today);
+          const daysToSunday = (7 - dayOfWeek) % 7;
+          endWeekend.setDate(today.getDate() + daysToSunday);
+          endWeekend.setHours(23, 59, 59, 999);
+          return raceDate >= startWeekend && raceDate <= endWeekend;
+        }
+
+        if (filterValue === '15days') {
+          const limit = new Date(today);
+          limit.setDate(today.getDate() + 15);
+          limit.setHours(23, 59, 59, 999);
+          return raceDate >= today && raceDate <= limit;
+        }
+
+        if (filterValue === '30days') {
+          const limit = new Date(today);
+          limit.setDate(today.getDate() + 30);
+          limit.setHours(23, 59, 59, 999);
+          return raceDate >= today && raceDate <= limit;
+        }
+
+        return dateStr.substring(0, 7) === filterValue;
+      };
+
       const updateList = () => {
         const query = search?.value.trim() || '';
         const normQuery = normalize(query);
         let total = 0;
         races.forEach((race) => {
-          const matchesMonth = selectedMonth === 'all' || race.dataset.mes === selectedMonth;
+          const raceDate = race.dataset.fecha || '';
+          const matchesFilter = checkListFilter(raceDate, selectedFilter);
           const matchesSearch = !normQuery || normalize(race.dataset.search || '').includes(normQuery);
-          const show = matchesMonth && matchesSearch;
+          const show = matchesFilter && matchesSearch;
           race.hidden = !show;
           if (show) total++;
         });
         if (empty) empty.hidden = total !== 0;
-        window.__raceMapController?.filterMarkers(query, selectedMonth);
+        window.__raceMapController?.filterMarkers(query, selectedFilter);
       };
 
       buttons.forEach((button) => button.addEventListener('click', () => {
         buttons.forEach((item) => item.classList.remove('active'));
         button.classList.add('active');
-        selectedMonth = button.dataset.filter || 'all';
+        selectedFilter = button.dataset.filter || 'all';
         updateList();
       }));
       search?.addEventListener('input', updateList);
@@ -556,6 +650,48 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
         input?.addEventListener('input', calculatePace);
       });
       calculatePace();
+
+      // --- Cuenta Atrás Hero ---
+      const countdownEl = document.querySelector('.hero-countdown');
+      if (countdownEl) {
+        const targetDateStr = countdownEl.getAttribute('data-date');
+        if (targetDateStr) {
+          const [year, month, day] = targetDateStr.split('-').map(Number);
+          const targetTime = new Date(year, month - 1, day, 9, 0, 0).getTime();
+          const cdDays = document.getElementById('cd-days');
+          const cdHours = document.getElementById('cd-hours');
+          const cdMins = document.getElementById('cd-mins');
+          const cdSecs = document.getElementById('cd-secs');
+
+          const updateCountdown = () => {
+            const now = new Date().getTime();
+            const diff = targetTime - now;
+
+            if (diff <= 0) {
+              if (cdDays) cdDays.textContent = '00';
+              if (cdHours) cdHours.textContent = '00';
+              if (cdMins) cdMins.textContent = '00';
+              if (cdSecs) cdSecs.textContent = '00';
+              const label = countdownEl.querySelector('.cd-label');
+              if (label) label.textContent = '¡HOY ES LA CARRERA!';
+              return;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+            if (cdDays) cdDays.textContent = String(days).padStart(2, '0');
+            if (cdHours) cdHours.textContent = String(hours).padStart(2, '0');
+            if (cdMins) cdMins.textContent = String(mins).padStart(2, '0');
+            if (cdSecs) cdSecs.textContent = String(secs).padStart(2, '0');
+          };
+
+          updateCountdown();
+          setInterval(updateCountdown, 1000);
+        }
+      }
 
       const subscriptionForm = document.querySelector('#alerta-form');
       const subscriptionMessage = document.querySelector('#alerta-mensaje');
