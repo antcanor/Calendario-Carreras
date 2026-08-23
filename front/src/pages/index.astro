@@ -2,7 +2,10 @@
 import Analytics from '@vercel/analytics/astro';
 import { createClient } from '@libsql/client';
 
-const hoy = new Date().toISOString().split('T')[0];
+const ahora = new Date();
+const hoy = ahora.toISOString().split('T')[0];
+const fechaLimiteClima = new Date(ahora.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
 const tursoUrl = import.meta.env.TURSO_DATABASE_URL;
 const tursoToken = import.meta.env.TURSO_AUTH_TOKEN;
 
@@ -12,17 +15,10 @@ if (tursoUrl && tursoToken) {
   try {
     const db = createClient({ url: tursoUrl, authToken: tursoToken });
     const { rows } = await db.execute({
-      sql: 'SELECT titulo, fecha, ubicacion, imagen, url_inscripcion, url_ficha, origen FROM carreras WHERE fecha >= ? ORDER BY fecha ASC',
+      sql: 'SELECT titulo, fecha, ubicacion, imagen, url_inscripcion, url_ficha, origen, latitud, longitud FROM carreras WHERE fecha >= ? ORDER BY fecha ASC',
       args: [hoy]
     });
     carreras = rows;
-    try {
-      const { rows: coordenadas } = await db.execute({ sql: 'SELECT titulo, latitud, longitud FROM carreras WHERE latitud IS NOT NULL AND longitud IS NOT NULL' });
-      const porTitulo = new Map(coordenadas.map((c) => [c.titulo, { latitud: c.latitud, longitud: c.longitud }]));
-      carreras = carreras.map((carrera) => ({ ...carrera, ...porTitulo.get(carrera.titulo) }));
-    } catch {
-      console.info('El mapa se activará cuando las columnas de coordenadas estén disponibles.');
-    }
   } catch (error) { console.error('Error al conectar con Turso:', error); }
 }
 
@@ -35,6 +31,61 @@ const destacada = carreras[0];
 const marcadoresMapa = carreras
   .filter((carrera) => Number.isFinite(Number(carrera.latitud)) && Number.isFinite(Number(carrera.longitud)))
   .map((carrera) => ({ titulo: carrera.titulo, ubicacion: carrera.ubicacion, fecha: fecha(carrera.fecha).completa, latitud: Number(carrera.latitud), longitud: Number(carrera.longitud), enlace: carrera.url_ficha || carrera.url_inscripcion || '' }));
+
+// Previsión meteorológica con Open-Meteo para carreras en los próximos 14 días
+const interpretarClima = (code) => {
+  if (code === 0) return { texto: 'Despejado', icono: '☀️' };
+  if (code === 1) return { texto: 'Mayormente despejado', icono: '🌤️' };
+  if (code === 2) return { texto: 'Parcialmente nuboso', icono: '⛅' };
+  if (code === 3) return { texto: 'Nublado', icono: '☁️' };
+  if (code === 45 || code === 48) return { texto: 'Niebla', icono: '🌫️' };
+  if ([51, 53, 55, 56, 57].includes(code)) return { texto: 'Llovizna', icono: '🌦️' };
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { texto: 'Lluvia', icono: '🌧️' };
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return { texto: 'Nieve', icono: '❄️' };
+  if ([95, 96, 99].includes(code)) return { texto: 'Tormenta', icono: '⛈️' };
+  return { texto: 'Variable', icono: '🌡️' };
+};
+
+const mapaClima = new Map();
+const carrerasConClima = carreras.filter((c) =>
+  c.fecha >= hoy &&
+  c.fecha <= fechaLimiteClima &&
+  Number.isFinite(Number(c.latitud)) &&
+  Number.isFinite(Number(c.longitud))
+);
+
+if (carrerasConClima.length > 0) {
+  await Promise.allSettled(
+    carrerasConClima.map(async (carrera) => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${carrera.latitud}&longitude=${carrera.longitud}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=Europe/Madrid&start_date=${carrera.fecha}&end_date=${carrera.fecha}`;
+        const res = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.daily?.time?.length) {
+            const code = data.daily.weather_code?.[0] ?? 0;
+            const { texto, icono } = interpretarClima(code);
+            mapaClima.set(carrera.titulo, {
+              texto,
+              icono,
+              tempMax: Math.round(data.daily.temperature_2m_max?.[0] ?? 0),
+              tempMin: Math.round(data.daily.temperature_2m_min?.[0] ?? 0),
+              lluvia: data.daily.precipitation_probability_max?.[0] ?? 0,
+              viento: Math.round(data.daily.wind_speed_10m_max?.[0] ?? 0),
+            });
+          }
+        }
+      } catch {
+        // Fallback silencioso para no demorar la carga de página
+      }
+    })
+  );
+}
+
+const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
 ---
 
 <html lang="es">
@@ -57,10 +108,23 @@ const marcadoresMapa = carreras
       .navline, .marquee, .event-kicker, .counter, .filter, .date-tag { font:500 .69rem/1.2 'DM Mono',monospace; letter-spacing:.07em; text-transform:uppercase; } .navline { display:flex; align-items:center; justify-content:space-between; gap:1rem; position:relative; z-index:1; } .brand { font:1rem/1 'Archivo Black',sans-serif; text-decoration:none; letter-spacing:-.07em; } .brand span { color:var(--acid); } .nav-index { display:flex; align-items:center; gap:1.2rem; } .navlink { text-decoration:none; border-bottom:1px solid var(--acid); padding-bottom:.2rem; }
       .hero { max-width:1300px; width:100%; margin:auto; align-self:center; display:grid; grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr); align-items:end; gap:3rem; position:relative; z-index:1; } .hero-copy { padding-top:5rem; } .label { color:var(--acid); font:500 .72rem 'DM Mono',monospace; letter-spacing:.08em; text-transform:uppercase; } h1 { max-width:850px; margin:.55rem 0 0; font:clamp(4rem,10vw,10.5rem)/.78 'Archivo Black',sans-serif; letter-spacing:-.09em; text-transform:uppercase; } h1 i { color:var(--acid); font-style:normal; } .hero-description { max-width:31rem; margin:1.7rem 0 0; font-size:clamp(1rem,1.4vw,1.25rem); line-height:1.45; color:#c3c3bd; }
       .next-event { display:block; min-height:25rem; text-decoration:none; position:relative; background:#292a2b; overflow:hidden; } .next-event img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.72; filter:grayscale(1) contrast(1.1); transition:transform .5s ease,filter .5s ease; } .next-event:hover img { transform:scale(1.05); filter:grayscale(0) contrast(1); } .next-event::after { content:''; position:absolute; inset:0; background:linear-gradient(0deg,rgba(0,0,0,.88),transparent 68%); } .event-content { position:absolute; inset:auto 1.2rem 1.2rem; z-index:1; } .event-kicker { color:var(--acid); } .event-name { margin:.5rem 0; font-size:1.45rem; font-weight:700; line-height:1.08; } .event-place { margin:0; color:#deded8; font-size:.87rem; } .event-arrow { position:absolute; z-index:2; top:1rem; right:1rem; display:grid; place-items:center; width:2.5rem; height:2.5rem; background:var(--acid); color:var(--ink); font-size:1.3rem; border-radius:50%; }
+      .hero-weather { display:inline-flex; align-items:center; flex-wrap:wrap; gap:.45rem; margin-top:.7rem; padding:.32rem .65rem; background:rgba(18,19,21,.9); border:1px solid rgba(255,90,31,.5); border-radius:2px; font:500 .72rem/1.2 'DM Mono',monospace; color:var(--paper); letter-spacing:.04em; text-transform:uppercase; backdrop-filter:blur(4px); }
+      .hero-weather .weather-icon { font-size:.95rem; }
+      .hero-weather .weather-temp { color:var(--acid); font-weight:700; }
+      .hero-weather .weather-pill { color:#deded8; font-size:.68rem; }
       .marquee { display:flex; justify-content:space-between; align-items:end; position:relative; z-index:1; padding-top:2rem; color:#afafa9; border-top:1px solid rgba(255,255,255,.2); } .scroll-cue { color:var(--acid); text-decoration:none; }
       main { padding:clamp(4rem,9vw,8rem) clamp(1.1rem,4vw,4rem); max-width:1600px; margin:auto; } .index-head { display:grid; grid-template-columns:1fr auto; gap:2rem; padding-bottom:2rem; border-bottom:2px solid var(--ink); align-items:end; } h2 { max-width:950px; margin:.5rem 0 0; font:clamp(3.2rem,8vw,8rem)/.8 'Archivo Black',sans-serif; letter-spacing:-.09em; text-transform:uppercase; } .counter { text-align:right; padding-bottom:.45rem; }
       .controls { padding:1.35rem 0 1.8rem; border-bottom:1px solid var(--line); } .search { width:100%; margin-bottom:.8rem; padding:.82rem 0; border:0; border-bottom:2px solid var(--ink); border-radius:0; outline:0; color:var(--ink); background:transparent; font:500 1rem 'DM Mono',monospace; } .search::placeholder { color:#747570; } .search:focus { border-color:var(--acid); } .filters { display:flex; flex-wrap:wrap; gap:.45rem; } .filter { appearance:none; padding:.62rem .8rem; background:transparent; border:1px solid var(--line); border-radius:0; color:var(--ink); cursor:pointer; transition:.18s; } .filter:hover, .filter.active { background:var(--ink); border-color:var(--ink); color:var(--acid); }
       .race-list { display:grid; } .race { display:grid; grid-template-columns:5.2rem 5.5rem minmax(0,1fr) minmax(9rem,.55fr) auto; align-items:center; gap:1.4rem; padding:1.15rem 0; border-bottom:1px solid var(--line); transition:padding .22s,background .22s; } .race[hidden] { display:none; } .race:hover { padding-left:1rem; padding-right:1rem; background:var(--acid); } .race-image { width:5.5rem; height:5.5rem; overflow:hidden; background:#292a2b; } .race-image img { width:100%; height:100%; object-fit:cover; filter:grayscale(1); transition:filter .2s,transform .25s; } .race:hover .race-image img { filter:grayscale(0); transform:scale(1.06); } .race-image i { display:grid; height:100%; place-items:center; color:var(--acid); font-size:1.25rem; } .date { font:clamp(2.6rem,4vw,4.8rem)/.8 'Archivo Black',sans-serif; letter-spacing:-.08em; } .date span { display:block; margin-top:.45rem; font:500 .65rem 'DM Mono',monospace; letter-spacing:.08em; } .race-title { margin:0; font-size:clamp(1.2rem,2.2vw,2rem); line-height:1.05; letter-spacing:-.045em; font-weight:700; } .race-place { margin:.35rem 0 0; color:#5b5d5a; font-size:.87rem; } .race-meta { font:500 .68rem/1.55 'DM Mono',monospace; color:#5b5d5a; text-transform:uppercase; } .race-links { display:flex; align-items:center; justify-content:flex-end; gap:.5rem; } .action { display:inline-flex; align-items:center; justify-content:center; min-width:2.55rem; height:2.55rem; padding:0 .85rem; border:1px solid var(--ink); font:500 .68rem 'DM Mono',monospace; text-decoration:none; text-transform:uppercase; letter-spacing:.04em; transition:.18s; } .action:hover { color:var(--paper); background:var(--ink); } .action.primary { color:var(--ink); background:var(--acid); border-color:var(--acid); } .action.primary:hover { background:var(--ink); color:var(--acid); }
+      .race-weather { display:inline-flex; align-items:center; flex-wrap:wrap; gap:.35rem; margin-top:.45rem; padding:.2rem .45rem; background:rgba(18,19,21,.05); border:1px solid var(--line); border-radius:2px; font:500 .68rem 'DM Mono',monospace; color:var(--ink); letter-spacing:.03em; text-transform:uppercase; width:fit-content; }
+      .race:hover .race-weather { background:var(--ink); border-color:var(--ink); color:var(--paper); }
+      .race:hover .race-weather .weather-temp { color:var(--acid); }
+      .race-weather .weather-icon { font-size:.82rem; }
+      .race-weather .weather-temp { font-weight:700; color:var(--ink); }
+      .race-weather .weather-rain { color:#0284c7; }
+      .race:hover .race-weather .weather-rain { color:#38bdf8; }
+      .race-weather .weather-wind { color:#5b5d5a; }
+      .race:hover .race-weather .weather-wind { color:#c3c3bd; }
       .empty { padding:4rem 1rem; text-align:center; border-bottom:1px solid var(--line); font-size:1.1rem; } .footer { padding:1.5rem clamp(1.1rem,4vw,4rem); display:flex; justify-content:space-between; background:var(--acid); font:500 .68rem 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; }
       .alerta { margin-top:clamp(4rem,8vw,7rem); padding:clamp(1.4rem,4vw,3rem); display:grid; grid-template-columns:minmax(0,1fr) minmax(18rem,.82fr); gap:3rem; align-items:end; background:var(--ink); color:var(--paper); position:relative; overflow:hidden; } .alerta::before { content:'KM'; position:absolute; right:-.08em; top:-.28em; color:rgba(255,255,255,.04); font:clamp(9rem,21vw,22rem)/1 'Archivo Black',sans-serif; letter-spacing:-.1em; pointer-events:none; } .alerta-content, .alerta-form { position:relative; z-index:1; } .alerta .label { color:var(--acid); } .alerta h3 { max-width:700px; margin:.7rem 0 0; font:clamp(2.7rem,5vw,5.5rem)/.84 'Archivo Black',sans-serif; letter-spacing:-.075em; text-transform:uppercase; } .alerta p { max-width:30rem; margin:1.2rem 0 0; color:#c3c3bd; line-height:1.5; } .alerta-form label { display:block; margin-bottom:.65rem; color:var(--acid); font:500 .68rem 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; } .alerta-fields { display:flex; gap:.5rem; } .alerta-fields input { min-width:0; flex:1; padding:.9rem 0; color:var(--paper); background:transparent; border:0; border-bottom:1px solid #898984; border-radius:0; outline:0; font:500 .9rem 'DM Mono',monospace; } .alerta-fields input:focus { border-color:var(--acid); } .consent { display:flex; align-items:flex-start; gap:.55rem; margin-top:1rem; color:#b5b5af; font-size:.75rem; line-height:1.4; } .consent input { width:1rem; height:1rem; margin:.08rem 0 0; accent-color:var(--acid); } .consent label { margin:0; color:#b5b5af; font:400 .75rem/1.4 'DM Sans',sans-serif; letter-spacing:0; text-transform:none; } .alerta button { padding:.88rem 1rem; border:1px solid var(--acid); color:var(--ink); background:var(--acid); cursor:pointer; font:500 .7rem 'DM Mono',monospace; letter-spacing:.05em; text-transform:uppercase; transition:.18s; } .alerta button:hover { color:var(--acid); background:transparent; } .alerta button:disabled { cursor:wait; opacity:.65; } .alerta small { display:block; margin-top:.85rem; color:#898984; font-size:.72rem; line-height:1.4; } .form-message { min-height:1.4rem; margin:.8rem 0 0; color:var(--acid); font-size:.8rem; } .form-message.error { color:#ff9a7c; }
       @media (max-width:760px) { .masthead { min-height:auto; } .navline { align-items:flex-start; } .nav-index { align-items:flex-end; flex-direction:column; gap:.45rem; } .hero { grid-template-columns:1fr; gap:2rem; } .hero-copy { padding-top:4.5rem; } h1 { font-size:clamp(4rem,18vw,7rem); } .next-event { min-height:18rem; } .index-head { grid-template-columns:1fr; gap:.5rem; } .counter { text-align:left; } .race { grid-template-columns:4.2rem 3.5rem minmax(0,1fr) auto; gap:.75rem; } .race-image { width:3.5rem; height:3.5rem; } .race-meta { display:none; } .race-links { flex-direction:column; } .action { min-width:2.4rem; padding:0 .55rem; } .alerta { grid-template-columns:1fr; gap:1.8rem; } .alerta-fields { display:block; } .alerta button { width:100%; margin-top:1rem; } .footer { gap:1rem; flex-direction:column; } }
@@ -74,7 +138,7 @@ const marcadoresMapa = carreras
         <div class="hero-copy"><span class="label">Calendario de carreras · Región de Murcia</span><h1>Busca.<br />Corre.<br /><i>Vuelve.</i></h1><p class="hero-description">Un punto de partida para quienes llenan los domingos de kilómetros. Carreras populares, trail y retos de la Región de Murcia.</p></div>
         {destacada && <a class="next-event" href={destacada.url_ficha || destacada.url_inscripcion || '#calendario'} target={destacada.url_ficha || destacada.url_inscripcion ? '_blank' : undefined} rel="noopener noreferrer">
           {destacada.imagen && <img src={destacada.imagen} alt="" />}
-          <span class="event-arrow">↗</span><div class="event-content"><span class="event-kicker">Próxima carrera · {fecha(destacada.fecha).completa}</span><h2 class="event-name">{destacada.titulo}</h2><p class="event-place"><i class="bi bi-geo-alt me-1"></i>{destacada.ubicacion}</p></div>
+          <span class="event-arrow">↗</span><div class="event-content"><span class="event-kicker">Próxima carrera · {fecha(destacada.fecha).completa}</span><h2 class="event-name">{destacada.titulo}</h2><p class="event-place"><i class="bi bi-geo-alt me-1"></i>{destacada.ubicacion}</p>{climaDestacada && <div class="hero-weather"><span class="weather-icon">{climaDestacada.icono}</span><span class="weather-temp">{climaDestacada.tempMax}°C</span><span class="weather-pill">· {climaDestacada.texto}</span><span class="weather-pill">💧 {climaDestacada.lluvia}%</span><span class="weather-pill">💨 {climaDestacada.viento} km/h</span></div>}</div>
         </a>}
       </div>
       <div class="marquee"><span>Actualizado con carreras futuras · {carreras.length} en el radar</span><a class="scroll-cue" href="#calendario">↓ Explorar carreras</a></div>
@@ -83,7 +147,7 @@ const marcadoresMapa = carreras
       <div class="index-head"><div><span class="label" style="color: var(--ink)">01 / Calendario</span><h2>El próximo<br />dorsal.</h2></div><p class="counter">{carreras.length.toString().padStart(2, '0')} carreras<br />por descubrir</p></div>
       <div class="controls"><label class="visually-hidden" for="race-search">Buscar carrera</label><input class="search" id="race-search" type="search" placeholder="Buscar por carrera o ubicación…" autocomplete="off" /><div class="filters" aria-label="Filtrar calendario por mes"><button class="filter active" data-filter="all">Todo el calendario</button>{mesesDisponibles.map((mes) => <button class="filter" data-filter={mes}>{etiquetaMes(mes)}</button>)}</div></div>
       <section class="race-list" aria-label="Listado de carreras">
-        {carreras.map((carrera, indice) => { const cuando = fecha(carrera.fecha); const mesFiltro = carrera.fecha.substring(0, 7); return <article class="race" data-mes={mesFiltro} data-search={`${carrera.titulo} ${carrera.ubicacion}`}><div class="date">{cuando.dia}<span>{cuando.mes}</span></div><div class="race-image">{carrera.imagen ? <img src={carrera.imagen} alt="" loading="lazy" /> : <i class="bi bi-flag-fill"></i>}</div><div><p class="race-title">{carrera.titulo}</p><p class="race-place"><i class="bi bi-geo-alt me-1"></i>{carrera.ubicacion}</p></div><div class="race-meta">#{String(indice + 1).padStart(2, '0')}<br />{carrera.origen || 'Agenda Murcia'}</div><div class="race-links">{carrera.url_ficha && <a class="action" href={carrera.url_ficha} target="_blank" rel="noopener noreferrer" aria-label={`Ver detalles de ${carrera.titulo}`}>Info</a>}{carrera.url_inscripcion && <a class="action primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" aria-label={`Inscribirse a ${carrera.titulo}`}>Ir ↗</a>}</div></article>; })}
+        {carreras.map((carrera, indice) => { const cuando = fecha(carrera.fecha); const mesFiltro = carrera.fecha.substring(0, 7); const clima = mapaClima.get(carrera.titulo); return <article class="race" data-mes={mesFiltro} data-search={`${carrera.titulo} ${carrera.ubicacion}`}><div class="date">{cuando.dia}<span>{cuando.mes}</span></div><div class="race-image">{carrera.imagen ? <img src={carrera.imagen} alt="" loading="lazy" /> : <i class="bi bi-flag-fill"></i>}</div><div><p class="race-title">{carrera.titulo}</p><p class="race-place"><i class="bi bi-geo-alt me-1"></i>{carrera.ubicacion}</p>{clima && <div class="race-weather" title={`Previsión día de carrera: ${clima.texto}, viento ${clima.viento} km/h`}><span class="weather-icon">{clima.icono}</span><span class="weather-temp">{clima.tempMax}°C</span><span class="weather-rain">💧 {clima.lluvia}%</span><span class="weather-wind">💨 {clima.viento} km/h</span></div>}</div><div class="race-meta">#{String(indice + 1).padStart(2, '0')}<br />{carrera.origen || 'Agenda Murcia'}</div><div class="race-links">{carrera.url_ficha && <a class="action" href={carrera.url_ficha} target="_blank" rel="noopener noreferrer" aria-label={`Ver detalles de ${carrera.titulo}`}>Info</a>}{carrera.url_inscripcion && <a class="action primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" aria-label={`Inscribirse a ${carrera.titulo}`}>Ir ↗</a>}</div></article>; })}
       </section>
       <div class="empty" id="no-results" hidden>No hay carreras con esos criterios. Prueba con otro nombre, ubicación o mes.</div>
       {carreras.length === 0 && <div class="empty">Aún no hay próximas pruebas publicadas. Vuelve pronto.</div>}
