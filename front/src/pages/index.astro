@@ -1,6 +1,7 @@
 ---
 import Analytics from '@vercel/analytics/astro';
 import { createClient } from '@libsql/client';
+import { generarSlug } from '../utils/carreras';
 
 const ahora = new Date();
 const hoy = ahora.toISOString().split('T')[0];
@@ -36,14 +37,16 @@ const crearGoogleCalendarUrl = (carrera) => {
   const fin = `${finDate.getUTCFullYear()}${String(finDate.getUTCMonth() + 1).padStart(2, '0')}${String(finDate.getUTCDate()).padStart(2, '0')}`;
   const titulo = carrera.titulo;
   const ubicacion = `${carrera.ubicacion || 'Región de Murcia'}, España`;
-  const enlace = carrera.url_inscripcion || carrera.url_ficha || 'https://calendario-carreras.vercel.app';
+  const slug = generarSlug(carrera.titulo, carrera.fecha);
+  const enlace = `https://calendario-carreras.vercel.app/carrera/${slug}`;
   const detalles = `Información e inscripciones: ${enlace}\n\nEncuentra más carreras en Calendario Murcia Running: https://calendario-carreras.vercel.app`;
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(titulo)}&dates=${inicio}/${fin}&details=${encodeURIComponent(detalles)}&location=${encodeURIComponent(ubicacion)}`;
 };
 
 const crearWhatsAppShareUrl = (carrera) => {
-  const enlace = carrera.url_inscripcion || carrera.url_ficha || 'https://calendario-carreras.vercel.app';
-  const texto = `🏃‍♂️ ¡Mira esta carrera en Murcia!\n\n🔥 *${carrera.titulo}*\n📅 ${fecha(carrera.fecha).completa}\n📍 ${carrera.ubicacion || 'Región de Murcia'}\n\n👉 Info e inscripciones:\n${enlace}\n\nEncuentra más en: https://calendario-carreras.vercel.app`;
+  const slug = generarSlug(carrera.titulo, carrera.fecha);
+  const enlace = `https://calendario-carreras.vercel.app/carrera/${slug}`;
+  const texto = `🏃‍♂️ ¡Mira esta carrera en Murcia!\n\n🔥 *${carrera.titulo}*\n📅 ${fecha(carrera.fecha).completa}\n📍 ${carrera.ubicacion || 'Región de Murcia'}\n\n👉 Ficha e inscripciones:\n${enlace}\n\nEncuentra más en: https://calendario-carreras.vercel.app`;
   return `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
 };
 
@@ -58,7 +61,7 @@ const marcadoresMapa = carreras
     search: `${carrera.titulo} ${carrera.ubicacion}`,
     latitud: Number(carrera.latitud),
     longitud: Number(carrera.longitud),
-    enlace: carrera.url_ficha || carrera.url_inscripcion || '',
+    enlace: `/carrera/${generarSlug(carrera.titulo, carrera.fecha)}`,
     calUrl: crearGoogleCalendarUrl(carrera),
     waUrl: crearWhatsAppShareUrl(carrera)
   }));
@@ -279,7 +282,7 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
       <div class="index-head"><div><span class="label" style="color: var(--ink)">01 / Calendario</span><h2>El próximo<br />dorsal.</h2></div><p class="counter">{carreras.length.toString().padStart(2, '0')} carreras<br />por descubrir</p></div>
       <div class="controls"><label class="visually-hidden" for="race-search">Buscar carrera</label><input class="search" id="race-search" type="search" placeholder="Buscar por carrera o ubicación…" autocomplete="off" /><div class="filters" aria-label="Filtrar calendario"><button class="filter active" data-filter="all">Todo el calendario</button><button class="filter filter-express" data-filter="weekend">⚡ Este Finde</button><button class="filter filter-express" data-filter="15days">🔥 Próximos 15 días</button><button class="filter filter-express" data-filter="30days">📅 Próximo mes (30d)</button>{mesesDisponibles.map((mes) => <button class="filter" data-filter={mes}>{etiquetaMes(mes)}</button>)}</div></div>
       <section class="race-list" aria-label="Listado de carreras">
-        {carreras.map((carrera, indice) => { const cuando = fecha(carrera.fecha); const mesFiltro = carrera.fecha.substring(0, 7); const clima = mapaClima.get(carrera.titulo); return <article class="race" data-mes={mesFiltro} data-fecha={carrera.fecha} data-search={`${carrera.titulo} ${carrera.ubicacion}`}><div class="date">{cuando.dia}<span>{cuando.mes}</span></div><div class="race-image">{carrera.imagen ? <img src={carrera.imagen} alt="" loading="lazy" /> : <i class="bi bi-flag-fill"></i>}</div><div><p class="race-title">{carrera.titulo}</p><p class="race-place" data-locate={carrera.titulo} title="Ver ubicación en el mapa"><i class="bi bi-geo-alt me-1"></i>{carrera.ubicacion}</p>{clima && <div class="race-weather" title={`Previsión día de carrera: ${clima.texto}, viento ${clima.viento} km/h`}><span class="weather-icon">{clima.icono}</span><span class="weather-temp">{clima.tempMax}°C</span><span class="weather-rain">💧 {clima.lluvia}%</span><span class="weather-wind">💨 {clima.viento} km/h</span></div>}</div><div class="race-meta">#{String(indice + 1).padStart(2, '0')}<br />{carrera.origen || 'Agenda Murcia'}</div><div class="race-links"><a class="action wa-action" href={crearWhatsAppShareUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Compartir ${carrera.titulo} por WhatsApp`} title="Compartir en WhatsApp"><i class="bi bi-whatsapp"></i></a><a class="action cal-action" href={crearGoogleCalendarUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Añadir ${carrera.titulo} a Google Calendar`} title="Añadir a Google Calendar"><i class="bi bi-calendar-plus"></i> Cal</a>{carrera.url_ficha && <a class="action" href={carrera.url_ficha} target="_blank" rel="noopener noreferrer" aria-label={`Ver detalles de ${carrera.titulo}`}>Info</a>}{carrera.url_inscripcion && <a class="action primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" aria-label={`Inscribirse a ${carrera.titulo}`}>Ir ↗</a>}</div></article>; })}
+        {carreras.map((carrera, indice) => { const cuando = fecha(carrera.fecha); const mesFiltro = carrera.fecha.substring(0, 7); const clima = mapaClima.get(carrera.titulo); const slug = generarSlug(carrera.titulo, carrera.fecha); return <article class="race" data-mes={mesFiltro} data-fecha={carrera.fecha} data-search={`${carrera.titulo} ${carrera.ubicacion}`}><div class="date">{cuando.dia}<span>{cuando.mes}</span></div><div class="race-image">{carrera.imagen ? <img src={carrera.imagen} alt="" loading="lazy" /> : <i class="bi bi-flag-fill"></i>}</div><div><p class="race-title">{carrera.titulo}</p><p class="race-place" data-locate={carrera.titulo} title="Ver ubicación en el mapa"><i class="bi bi-geo-alt me-1"></i>{carrera.ubicacion}</p>{clima && <div class="race-weather" title={`Previsión día de carrera: ${clima.texto}, viento ${clima.viento} km/h`}><span class="weather-icon">{clima.icono}</span><span class="weather-temp">{clima.tempMax}°C</span><span class="weather-rain">💧 {clima.lluvia}%</span><span class="weather-wind">💨 {clima.viento} km/h</span></div>}</div><div class="race-meta">#{String(indice + 1).padStart(2, '0')}<br />{carrera.origen || 'Agenda Murcia'}</div><div class="race-links"><a class="action wa-action" href={crearWhatsAppShareUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Compartir ${carrera.titulo} por WhatsApp`} title="Compartir en WhatsApp"><i class="bi bi-whatsapp"></i></a><a class="action cal-action" href={crearGoogleCalendarUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Añadir ${carrera.titulo} a Google Calendar`} title="Añadir a Google Calendar"><i class="bi bi-calendar-plus"></i> Cal</a><a class="action" href={`/carrera/${slug}`} aria-label={`Ver ficha de ${carrera.titulo}`}>Ficha ↗</a>{carrera.url_inscripcion && <a class="action primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" aria-label={`Inscribirse a ${carrera.titulo}`}>Ir ↗</a>}</div></article>; })}
       </section>
       <div class="empty" id="no-results" hidden>No hay carreras con esos criterios. Prueba con otro nombre, ubicación o mes.</div>
       {carreras.length === 0 && <div class="empty">Aún no hay próximas pruebas publicadas. Vuelve pronto.</div>}
