@@ -41,6 +41,12 @@ const crearGoogleCalendarUrl = (carrera) => {
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(titulo)}&dates=${inicio}/${fin}&details=${encodeURIComponent(detalles)}&location=${encodeURIComponent(ubicacion)}`;
 };
 
+const crearWhatsAppShareUrl = (carrera) => {
+  const enlace = carrera.url_inscripcion || carrera.url_ficha || 'https://calendario-carreras.vercel.app';
+  const texto = `🏃‍♂️ ¡Mira esta carrera en Murcia!\n\n🔥 *${carrera.titulo}*\n📅 ${fecha(carrera.fecha).completa}\n📍 ${carrera.ubicacion || 'Región de Murcia'}\n\n👉 Info e inscripciones:\n${enlace}\n\nEncuentra más en: https://calendario-carreras.vercel.app`;
+  return `https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`;
+};
+
 const marcadoresMapa = carreras
   .filter((carrera) => Number.isFinite(Number(carrera.latitud)) && Number.isFinite(Number(carrera.longitud)))
   .map((carrera) => ({
@@ -52,7 +58,8 @@ const marcadoresMapa = carreras
     latitud: Number(carrera.latitud),
     longitud: Number(carrera.longitud),
     enlace: carrera.url_ficha || carrera.url_inscripcion || '',
-    calUrl: crearGoogleCalendarUrl(carrera)
+    calUrl: crearGoogleCalendarUrl(carrera),
+    waUrl: crearWhatsAppShareUrl(carrera)
   }));
 
 // Previsión meteorológica con Open-Meteo para carreras en los próximos 14 días
@@ -190,6 +197,9 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
       .action.cal-action { border-color:var(--line); gap:.35rem; }
       .action.cal-action:hover { background:var(--ink); color:var(--acid); border-color:var(--ink); }
       .action.cal-action i { font-size:.78rem; }
+      .action.wa-action { border-color:var(--line); min-width:2.4rem; padding:0 .6rem; color:#25d366; }
+      .action.wa-action:hover { background:#25d366; color:var(--ink); border-color:#25d366; }
+      .action.wa-action i { font-size:.86rem; }
       .race-weather { display:inline-flex; align-items:center; flex-wrap:wrap; gap:.35rem; margin-top:.45rem; padding:.2rem .45rem; background:rgba(18,19,21,.05); border:1px solid var(--line); border-radius:2px; font:500 .68rem 'DM Mono',monospace; color:var(--ink); letter-spacing:.03em; text-transform:uppercase; width:fit-content; }
       .race:hover .race-weather { background:var(--ink); border-color:var(--ink); color:var(--paper); }
       .race:hover .race-weather .weather-temp { color:var(--acid); }
@@ -200,6 +210,39 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
       .race-weather .weather-wind { color:#5b5d5a; }
       .race:hover .race-weather .weather-wind { color:#c3c3bd; }
       .empty { padding:4rem 1rem; text-align:center; border-bottom:1px solid var(--line); font-size:1.1rem; }
+      .ritmos-section { margin-top:clamp(4rem,8vw,7rem); }
+      .ritmos-grid { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:2rem; margin-top:2rem; align-items:start; }
+      .ritmos-card { background:var(--ink); color:var(--paper); padding:clamp(1.5rem,3vw,2.4rem); border:1px solid var(--ink); }
+      .card-kicker { display:block; font:500 .72rem 'DM Mono',monospace; color:var(--acid); text-transform:uppercase; letter-spacing:.08em; margin-bottom:.85rem; }
+      .dist-buttons { display:flex; flex-wrap:wrap; gap:.45rem; margin-bottom:1rem; }
+      .dist-btn { appearance:none; padding:.65rem .9rem; background:transparent; border:1px solid rgba(255,255,255,.2); color:var(--paper); font:500 .72rem 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.05em; cursor:pointer; transition:.18s; }
+      .dist-btn:hover, .dist-btn.active { background:var(--acid); border-color:var(--acid); color:var(--ink); font-weight:700; }
+      .custom-dist-wrap { margin-bottom:1rem; }
+      .custom-dist-wrap label { display:block; font:500 .68rem 'DM Mono',monospace; color:#afafa9; text-transform:uppercase; margin-bottom:.4rem; }
+      .custom-dist-wrap input { width:100%; max-width:14rem; padding:.6rem .8rem; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.2); color:var(--paper); font:500 1.1rem 'DM Mono',monospace; outline:none; }
+      .custom-dist-wrap input:focus { border-color:var(--acid); }
+      .time-inputs { display:flex; align-items:flex-end; gap:.5rem; }
+      .time-field { display:flex; flex-direction:column; gap:.35rem; }
+      .time-field label { font:500 .65rem 'DM Mono',monospace; color:#afafa9; text-transform:uppercase; }
+      .time-field input { width:4.5rem; text-align:center; padding:.75rem 0; font:700 1.6rem 'Archivo Black',sans-serif; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.2); color:var(--paper); outline:none; -moz-appearance:textfield; }
+      .time-field input::-webkit-outer-spin-button, .time-field input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+      .time-field input:focus { border-color:var(--acid); background:rgba(255,90,31,.08); }
+      .time-colon { font:700 1.8rem 'Archivo Black',sans-serif; color:var(--acid); padding-bottom:.5rem; }
+      .pace-display { display:flex; justify-content:space-between; align-items:flex-end; padding-bottom:1.5rem; border-bottom:1px solid rgba(255,255,255,.15); flex-wrap:wrap; gap:1rem; }
+      .pace-label { display:block; font:500 .68rem 'DM Mono',monospace; color:#afafa9; text-transform:uppercase; letter-spacing:.05em; }
+      .pace-hero { font:clamp(3rem,6vw,4.2rem)/.85 'Archivo Black',sans-serif; color:var(--acid); letter-spacing:-.06em; margin-top:.35rem; display:flex; align-items:baseline; gap:.45rem; }
+      .pace-unit { font:500 .85rem 'DM Mono',monospace; color:var(--paper); letter-spacing:.04em; }
+      .speed-box { text-align:right; }
+      .speed-label { display:block; font:500 .68rem 'DM Mono',monospace; color:#afafa9; text-transform:uppercase; }
+      .speed-val { font:1.5rem 'Archivo Black',sans-serif; color:var(--paper); }
+      .speed-val small { font:500 .8rem 'DM Mono',monospace; color:#afafa9; }
+      .splits-box { margin-top:1.5rem; }
+      .splits-table-wrap { max-height:13.5rem; overflow-y:auto; border:1px solid rgba(255,255,255,.1); }
+      .splits-table { width:100%; border-collapse:collapse; font:500 .72rem 'DM Mono',monospace; text-align:left; }
+      .splits-table th { background:rgba(255,255,255,.05); padding:.55rem .75rem; color:#afafa9; border-bottom:1px solid rgba(255,255,255,.15); text-transform:uppercase; }
+      .splits-table td { padding:.5rem .75rem; border-bottom:1px solid rgba(255,255,255,.07); }
+      .splits-table tr:hover td { background:rgba(255,90,31,.1); color:var(--acid); }
+      @media (max-width:900px) { .ritmos-grid { grid-template-columns:1fr; } .speed-box { text-align:left; } }
       .footer { padding:1.5rem clamp(1.1rem,4vw,4rem); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1.2rem; background:var(--acid); color:var(--ink); font:500 .68rem 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.06em; }
       .footer-brand { display:flex; align-items:center; flex-wrap:wrap; gap:1rem clamp(1rem,2vw,2.5rem); }
       .footer-tagline { opacity:.85; }
@@ -214,7 +257,7 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
   </head>
   <body>
     <header class="masthead">
-      <nav class="navline"><a class="brand" href="#top">CALENDARIO<span>/</span>MURCIA<span>/</span>RUNNING</a><div class="nav-index"><a class="navlink" href="#calendario">01 / Calendario</a><a class="navlink" href="#mapa">02 / Mapa</a><a class="navlink" href="#alertas">03 / Alertas</a></div></nav>
+      <nav class="navline"><a class="brand" href="#top">CALENDARIO<span>/</span>MURCIA<span>/</span>RUNNING</a><div class="nav-index"><a class="navlink" href="#calendario">01 / Calendario</a><a class="navlink" href="#mapa">02 / Mapa</a><a class="navlink" href="#ritmos">03 / Ritmos</a><a class="navlink" href="#alertas">04 / Alertas</a></div></nav>
       <div class="hero" id="top">
         <div class="hero-copy"><span class="label">Calendario de carreras · Región de Murcia</span><h1>Busca.<br />Corre.<br /><i>Vuelve.</i></h1><p class="hero-description">Un punto de partida para quienes llenan los domingos de kilómetros. Carreras populares, trail y retos de la Región de Murcia.</p></div>
         {destacada && <a class="next-event" href={destacada.url_ficha || destacada.url_inscripcion || '#calendario'} target={destacada.url_ficha || destacada.url_inscripcion ? '_blank' : undefined} rel="noopener noreferrer">
@@ -228,13 +271,80 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
       <div class="index-head"><div><span class="label" style="color: var(--ink)">01 / Calendario</span><h2>El próximo<br />dorsal.</h2></div><p class="counter">{carreras.length.toString().padStart(2, '0')} carreras<br />por descubrir</p></div>
       <div class="controls"><label class="visually-hidden" for="race-search">Buscar carrera</label><input class="search" id="race-search" type="search" placeholder="Buscar por carrera o ubicación…" autocomplete="off" /><div class="filters" aria-label="Filtrar calendario por mes"><button class="filter active" data-filter="all">Todo el calendario</button>{mesesDisponibles.map((mes) => <button class="filter" data-filter={mes}>{etiquetaMes(mes)}</button>)}</div></div>
       <section class="race-list" aria-label="Listado de carreras">
-        {carreras.map((carrera, indice) => { const cuando = fecha(carrera.fecha); const mesFiltro = carrera.fecha.substring(0, 7); const clima = mapaClima.get(carrera.titulo); return <article class="race" data-mes={mesFiltro} data-search={`${carrera.titulo} ${carrera.ubicacion}`}><div class="date">{cuando.dia}<span>{cuando.mes}</span></div><div class="race-image">{carrera.imagen ? <img src={carrera.imagen} alt="" loading="lazy" /> : <i class="bi bi-flag-fill"></i>}</div><div><p class="race-title">{carrera.titulo}</p><p class="race-place" data-locate={carrera.titulo} title="Ver ubicación en el mapa"><i class="bi bi-geo-alt me-1"></i>{carrera.ubicacion}</p>{clima && <div class="race-weather" title={`Previsión día de carrera: ${clima.texto}, viento ${clima.viento} km/h`}><span class="weather-icon">{clima.icono}</span><span class="weather-temp">{clima.tempMax}°C</span><span class="weather-rain">💧 {clima.lluvia}%</span><span class="weather-wind">💨 {clima.viento} km/h</span></div>}</div><div class="race-meta">#{String(indice + 1).padStart(2, '0')}<br />{carrera.origen || 'Agenda Murcia'}</div><div class="race-links"><a class="action cal-action" href={crearGoogleCalendarUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Añadir ${carrera.titulo} a Google Calendar`} title="Añadir a Google Calendar"><i class="bi bi-calendar-plus"></i> Cal</a>{carrera.url_ficha && <a class="action" href={carrera.url_ficha} target="_blank" rel="noopener noreferrer" aria-label={`Ver detalles de ${carrera.titulo}`}>Info</a>}{carrera.url_inscripcion && <a class="action primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" aria-label={`Inscribirse a ${carrera.titulo}`}>Ir ↗</a>}</div></article>; })}
+        {carreras.map((carrera, indice) => { const cuando = fecha(carrera.fecha); const mesFiltro = carrera.fecha.substring(0, 7); const clima = mapaClima.get(carrera.titulo); return <article class="race" data-mes={mesFiltro} data-search={`${carrera.titulo} ${carrera.ubicacion}`}><div class="date">{cuando.dia}<span>{cuando.mes}</span></div><div class="race-image">{carrera.imagen ? <img src={carrera.imagen} alt="" loading="lazy" /> : <i class="bi bi-flag-fill"></i>}</div><div><p class="race-title">{carrera.titulo}</p><p class="race-place" data-locate={carrera.titulo} title="Ver ubicación en el mapa"><i class="bi bi-geo-alt me-1"></i>{carrera.ubicacion}</p>{clima && <div class="race-weather" title={`Previsión día de carrera: ${clima.texto}, viento ${clima.viento} km/h`}><span class="weather-icon">{clima.icono}</span><span class="weather-temp">{clima.tempMax}°C</span><span class="weather-rain">💧 {clima.lluvia}%</span><span class="weather-wind">💨 {clima.viento} km/h</span></div>}</div><div class="race-meta">#{String(indice + 1).padStart(2, '0')}<br />{carrera.origen || 'Agenda Murcia'}</div><div class="race-links"><a class="action wa-action" href={crearWhatsAppShareUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Compartir ${carrera.titulo} por WhatsApp`} title="Compartir en WhatsApp"><i class="bi bi-whatsapp"></i></a><a class="action cal-action" href={crearGoogleCalendarUrl(carrera)} target="_blank" rel="noopener noreferrer" aria-label={`Añadir ${carrera.titulo} a Google Calendar`} title="Añadir a Google Calendar"><i class="bi bi-calendar-plus"></i> Cal</a>{carrera.url_ficha && <a class="action" href={carrera.url_ficha} target="_blank" rel="noopener noreferrer" aria-label={`Ver detalles de ${carrera.titulo}`}>Info</a>}{carrera.url_inscripcion && <a class="action primary" href={carrera.url_inscripcion} target="_blank" rel="noopener noreferrer" aria-label={`Inscribirse a ${carrera.titulo}`}>Ir ↗</a>}</div></article>; })}
       </section>
       <div class="empty" id="no-results" hidden>No hay carreras con esos criterios. Prueba con otro nombre, ubicación o mes.</div>
       {carreras.length === 0 && <div class="empty">Aún no hay próximas pruebas publicadas. Vuelve pronto.</div>}
+
       <section class="map-section" id="mapa" aria-labelledby="mapa-title"><div class="map-head"><div><span class="label" style="color: var(--ink)">02 / Mapa</span><h3 id="mapa-title">Corre por<br />el mapa.</h3></div><p>{marcadoresMapa.length ? `${marcadoresMapa.length} carreras ya localizadas. Toca un punto para ver los detalles.` : 'Estamos localizando las próximas carreras para situarlas aquí.'}</p></div>{marcadoresMapa.length ? <div id="race-map" aria-label="Mapa de carreras"></div> : <div class="map-empty"><div><strong>Mapa en preparación</strong>Ejecuta el geocodificador para mostrar las carreras por ubicación.</div></div>}</section>
+
+      <section class="ritmos-section" id="ritmos" aria-labelledby="ritmos-title">
+        <div class="index-head"><div><span class="label" style="color: var(--ink)">03 / Calculadora</span><h2 id="ritmos-title">Calcula<br />tu ritmo.</h2></div><p class="counter">Planifica tus marcas<br />y tiempos de paso</p></div>
+        <div class="ritmos-grid">
+          <div class="ritmos-card">
+            <span class="card-kicker">1. Selecciona Distancia</span>
+            <div class="dist-buttons">
+              <button type="button" class="dist-btn" data-dist="5">5K</button>
+              <button type="button" class="dist-btn active" data-dist="10">10K</button>
+              <button type="button" class="dist-btn" data-dist="21.0975">21K (Media)</button>
+              <button type="button" class="dist-btn" data-dist="42.195">42K (Maratón)</button>
+              <button type="button" class="dist-btn" data-dist="custom">Otro km</button>
+            </div>
+            <div class="custom-dist-wrap" id="custom-dist-wrap" hidden>
+              <label for="custom-km">Distancia en kilómetros</label>
+              <input type="number" id="custom-km" min="0.1" max="250" step="0.1" value="7.5" placeholder="Ej: 7.5" />
+            </div>
+            <span class="card-kicker" style="margin-top:1.6rem;">2. Tiempo Objetivo</span>
+            <div class="time-inputs">
+              <div class="time-field">
+                <label for="time-hours">Horas</label>
+                <input type="number" id="time-hours" min="0" max="99" value="0" placeholder="00" />
+              </div>
+              <span class="time-colon">:</span>
+              <div class="time-field">
+                <label for="time-mins">Minutos</label>
+                <input type="number" id="time-mins" min="0" max="59" value="45" placeholder="45" />
+              </div>
+              <span class="time-colon">:</span>
+              <div class="time-field">
+                <label for="time-secs">Segundos</label>
+                <input type="number" id="time-secs" min="0" max="59" value="0" placeholder="00" />
+              </div>
+            </div>
+          </div>
+          <div class="ritmos-card">
+            <div class="pace-display">
+              <div>
+                <span class="pace-label">Ritmo Medio Necesario</span>
+                <div class="pace-hero"><span id="pace-min-km">4:30</span> <span class="pace-unit">MIN / KM</span></div>
+              </div>
+              <div class="speed-box">
+                <span class="speed-label">Velocidad Media</span>
+                <span class="speed-val" id="pace-speed">13.33 <small>km/h</small></span>
+              </div>
+            </div>
+            <div class="splits-box">
+              <span class="card-kicker">Tiempos de Paso Estimados</span>
+              <div class="splits-table-wrap">
+                <table class="splits-table">
+                  <thead>
+                    <tr>
+                      <th>Punto</th>
+                      <th>Tiempo Acumulado</th>
+                      <th>Ritmo</th>
+                    </tr>
+                  </thead>
+                  <tbody id="splits-tbody">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="alerta" id="alertas" aria-labelledby="alerta-title">
-        <div class="alerta-content"><span class="label">03 / Alerta mensual</span><h3 id="alerta-title">Tu próximo<br />dorsal, en tu inbox.</h3><p>Una vez al mes: las nuevas carreras de Murcia, fechas que no deberías dejar escapar y nada de ruido.</p></div>
+        <div class="alerta-content"><span class="label">04 / Alerta mensual</span><h3 id="alerta-title">Tu próximo<br />dorsal, en tu inbox.</h3><p>Una vez al mes: las nuevas carreras de Murcia, fechas que no deberías dejar escapar y nada de ruido.</p></div>
         <form class="alerta-form" id="alerta-form"><label for="alerta-email">Tu email</label><div class="alerta-fields"><input id="alerta-email" name="email" type="email" placeholder="corredor@ejemplo.com" autocomplete="email" required /><button type="submit">Quiero recibirla ↗</button></div><div class="consent"><input id="alerta-consentimiento" name="consentimiento" type="checkbox" required /><label for="alerta-consentimiento">Acepto recibir la alerta mensual de carreras por email.</label></div><p class="form-message" id="alerta-mensaje" role="status" aria-live="polite"></p><small>Una alerta al mes. Puedes darte de baja cuando quieras.</small></form>
       </section>
     </main>
@@ -261,9 +371,10 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
           const point = [carrera.latitud, carrera.longitud];
           const link = carrera.enlace ? `<a class="map-popup-link" target="_blank" rel="noopener noreferrer" href="${escapeHtml(carrera.enlace)}">Ver carrera ↗</a>` : '';
           const calBtn = carrera.calUrl ? `<a class="map-popup-link" target="_blank" rel="noopener noreferrer" href="${escapeHtml(carrera.calUrl)}" style="margin-left:0.75rem;"><i class="bi bi-calendar-plus"></i> + Cal</a>` : '';
+          const waBtn = carrera.waUrl ? `<a class="map-popup-link" target="_blank" rel="noopener noreferrer" href="${escapeHtml(carrera.waUrl)}" style="margin-left:0.75rem;color:#128c7e;"><i class="bi bi-whatsapp"></i> WhatsApp</a>` : '';
           const marker = L.circleMarker(point, { radius: 8, color: '#121315', weight: 2, fillColor: '#ff5a1f', fillOpacity: 1 })
             .addTo(map)
-            .bindPopup(`<strong class="map-popup-title">${escapeHtml(carrera.titulo)}</strong><span class="map-popup-meta">${escapeHtml(carrera.fechaFormateada)} · ${escapeHtml(carrera.ubicacion)}</span>${link}${calBtn}`);
+            .bindPopup(`<strong class="map-popup-title">${escapeHtml(carrera.titulo)}</strong><span class="map-popup-meta">${escapeHtml(carrera.fechaFormateada)} · ${escapeHtml(carrera.ubicacion)}</span>${link}${calBtn}${waBtn}`);
           return { marker, carrera, point };
         });
 
@@ -347,6 +458,104 @@ const climaDestacada = destacada ? mapaClima.get(destacada.titulo) : null;
           }
         });
       });
+
+      // --- Calculadora de Ritmos ---
+      let currentDistance = 10;
+      const distButtons = document.querySelectorAll('.dist-btn');
+      const customWrap = document.getElementById('custom-dist-wrap');
+      const customKmInput = document.getElementById('custom-km');
+      const timeHours = document.getElementById('time-hours');
+      const timeMins = document.getElementById('time-mins');
+      const timeSecs = document.getElementById('time-secs');
+      const paceMinKm = document.getElementById('pace-min-km');
+      const paceSpeed = document.getElementById('pace-speed');
+      const splitsTbody = document.getElementById('splits-tbody');
+
+      const formatTime = (totalSeconds) => {
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const s = Math.round(totalSeconds % 60);
+        if (h > 0) {
+          return `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+        }
+        return `${m}m ${String(s).padStart(2, '0')}s`;
+      };
+
+      const formatPace = (secondsPerKm) => {
+        const m = Math.floor(secondsPerKm / 60);
+        const s = Math.round(secondsPerKm % 60);
+        return `${m}:${String(s).padStart(2, '0')}`;
+      };
+
+      const calculatePace = () => {
+        const h = Math.max(0, parseInt(timeHours?.value, 10) || 0);
+        const m = Math.max(0, parseInt(timeMins?.value, 10) || 0);
+        const s = Math.max(0, parseInt(timeSecs?.value, 10) || 0);
+        const totalSeconds = h * 3600 + m * 60 + s;
+
+        let dist = currentDistance;
+        if (currentDistance === 'custom') {
+          dist = Math.max(0.1, parseFloat(customKmInput?.value) || 5);
+        }
+
+        if (totalSeconds <= 0 || dist <= 0) {
+          if (paceMinKm) paceMinKm.textContent = '--:--';
+          if (paceSpeed) paceSpeed.innerHTML = `0.00 <small>km/h</small>`;
+          if (splitsTbody) splitsTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#747570;padding:1rem;">Introduce un tiempo objetivo</td></tr>';
+          return;
+        }
+
+        const secondsPerKm = totalSeconds / dist;
+        const speedKmH = (dist / (totalSeconds / 3600)).toFixed(2);
+
+        if (paceMinKm) paceMinKm.textContent = formatPace(secondsPerKm);
+        if (paceSpeed) paceSpeed.innerHTML = `${speedKmH} <small>km/h</small>`;
+
+        if (splitsTbody) {
+          const points = [];
+          if (dist <= 5) {
+            for (let i = 1; i <= Math.floor(dist); i++) points.push(i);
+          } else if (dist <= 10) {
+            for (let i = 2; i <= Math.floor(dist); i += 2) points.push(i);
+          } else if (dist <= 21.1) {
+            points.push(5, 10, 15, 20);
+          } else {
+            points.push(5, 10, 15, 20, 25, 30, 35, 40);
+          }
+          if (!points.includes(dist)) points.push(dist);
+
+          splitsTbody.innerHTML = points.map((p) => {
+            const splitTime = formatTime(secondsPerKm * p);
+            const label = p === dist ? `Meta (${p.toFixed(p % 1 === 0 ? 0 : 2)}k)` : `Km ${p}`;
+            return `<tr>
+              <td><strong>${label}</strong></td>
+              <td style="color:var(--acid);font-weight:700;">${splitTime}</td>
+              <td style="color:#afafa9;">${formatPace(secondsPerKm)} /km</td>
+            </tr>`;
+          }).join('');
+        }
+      };
+
+      distButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          distButtons.forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          const val = btn.dataset.dist;
+          if (val === 'custom') {
+            currentDistance = 'custom';
+            if (customWrap) customWrap.hidden = false;
+          } else {
+            currentDistance = parseFloat(val);
+            if (customWrap) customWrap.hidden = true;
+          }
+          calculatePace();
+        });
+      });
+
+      [timeHours, timeMins, timeSecs, customKmInput].forEach((input) => {
+        input?.addEventListener('input', calculatePace);
+      });
+      calculatePace();
 
       const subscriptionForm = document.querySelector('#alerta-form');
       const subscriptionMessage = document.querySelector('#alerta-mensaje');
