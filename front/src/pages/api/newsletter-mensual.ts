@@ -51,7 +51,7 @@ export const GET: APIRoute = async ({ request }) => {
   const listId = Number(import.meta.env.BREVO_LIST_ID);
   const senderEmail = import.meta.env.BREVO_SENDER_EMAIL;
   const senderName = import.meta.env.BREVO_SENDER_NAME || 'Calendario Murcia Running';
-  const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://calendario-carreras.vercel.app';
+  const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://carreras-murcia.vercel.app';
 
   if (!tursoUrl || !tursoToken || !apiKey || !senderEmail || !Number.isInteger(listId) || listId <= 0) {
     return respuesta({ error: 'Faltan variables de configuración para el envío mensual.' }, 503);
