@@ -12,6 +12,7 @@ Variables necesarias en .env:
 
 import argparse
 import os
+import re
 import time
 from datetime import date
 
@@ -36,38 +37,37 @@ def asegurar_columnas(client):
 
 
 def buscar_coordenadas(ubicacion, user_agent):
+    """Coordenadas de 'Cieza', 'Orihuela (Alicante)', 'La Parroquia (Lorca)' o 'Cieza / MURCIA'."""
     lugar = ubicacion.strip()
-
+    zona = None
+    entre_parentesis = re.match(r"^(.*\S)\s*\(([^()]+)\)$", lugar)
     if "/" in lugar:
-        nombre, provincia = (parte.strip() for parte in lugar.split("/", 1))
-        consulta = f"{nombre}, {provincia}, España"
+        nombre, zona = (parte.strip() for parte in lugar.split("/", 1))
+    elif entre_parentesis:
+        nombre, zona = entre_parentesis.group(1), entre_parentesis.group(2)
     else:
         nombre = lugar
-        consulta = f"{lugar}, Región de Murcia, España"
 
-    respuesta = requests.get(
-        NOMINATIM_URL,
-        params={"q": consulta, "format": "jsonv2", "limit": 1, "countrycodes": "es"},
-        headers={"User-Agent": user_agent, "Accept-Language": "es"},
-        timeout=20,
-    )
-    respuesta.raise_for_status()
-    resultados = respuesta.json()
-
-    if (not resultados and '/' in lugar)  or (not resultados):
-        # Fallback: si la provincia concreta no da resultado, prueba solo con el nombre + España
+    # Primero con la provincia (o la Región de Murcia por defecto); si no hay resultado, solo el nombre
+    consultas = [f"{nombre}, {zona or 'Región de Murcia'}, España", f"{nombre}, España"]
+    for indice, consulta in enumerate(consultas):
+        if indice:
+            time.sleep(PAUSA_ENTRE_CONSULTAS)
         respuesta = requests.get(
             NOMINATIM_URL,
-            params={"q": f"{nombre}, España", "format": "jsonv2", "limit": 1, "countrycodes": "es"},
+            params={"q": consulta, "format": "jsonv2", "limit": 5, "countrycodes": "es"},
             headers={"User-Agent": user_agent, "Accept-Language": "es"},
             timeout=20,
         )
         respuesta.raise_for_status()
         resultados = respuesta.json()
+        if resultados:
+            # Mejor el núcleo urbano que el centro geométrico del término municipal, que en municipios
+            # grandes (Murcia, Lorca...) cae en mitad del campo
+            mejor = next((r for r in resultados if r.get("category") == "place"), resultados[0])
+            return float(mejor["lat"]), float(mejor["lon"])
+    return None
 
-    if not resultados:
-        return None
-    return float(resultados[0]["lat"]), float(resultados[0]["lon"])
 
 def main():
     parser = argparse.ArgumentParser(description="Geocodifica ubicaciones de carreras en Turso.")

@@ -1,208 +1,96 @@
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
+"""Scraper de alcanzatumeta.es.
 
-# 1. URL objetivo
-url_objetivo = "https://www.alcanzatumeta.es/calendario.php"
-url_base = "https://www.alcanzatumeta.es/"  # Para corregir enlaces relativos
+El calendario tiene una tarjeta <article class="atmc-card"> por carrera con título, fecha,
+lugar, cartel y modalidad; la ficha de cada carrera añade sus pruebas con distancia y cuotas.
+"""
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-}
+import time
+from urllib.parse import urljoin
+
+from scrapers.comun import (carrera, crear_sesion, descargar, distancia_km, guardar_csv,
+                            normalizar_ubicacion, precio_euros, texto)
+
+URL_CALENDARIO = "https://www.alcanzatumeta.es/calendario.php"
+RUTA_CSV = 'data/alcanzatumeta_completo.csv'
+ORIGEN = 'ALCANZATUMETA'
+PAUSA_FICHA = 0.5  # segundos entre fichas, para no saturar la web
 
 
-def limpiar_fecha(fecha_texto):
-    """
-    Convierte '29 May 26' -> '2026-05-29'
-    """
-    if not fecha_texto:
-        return None
+def leer_pruebas(sesion, url_ficha):
+    """Pruebas de la ficha: distancia y cuotas vigentes de cada una. [] si no se puede leer."""
+    ficha = descargar(sesion, url_ficha)
+    if not ficha:
+        return []
 
-    # Diccionario bilingüe (Español/Inglés) para asegurar que pilla todo
-    meses = {
-        'jan': '01', 'ene': '01', 'enero': '01',
-        'feb': '02', 'febrero': '02',
-        'mar': '03', 'marzo': '03',
-        'apr': '04', 'abr': '04', 'abril': '04',
-        'may': '05', 'mayo': '05',
-        'jun': '06', 'junio': '06',
-        'jul': '07', 'julio': '07',
-        'aug': '08', 'ago': '08', 'agosto': '08',
-        'sep': '09', 'septiembre': '09',
-        'oct': '10', 'octubre': '10',
-        'nov': '11', 'noviembre': '11',
-        'dec': '12', 'dic': '12', 'diciembre': '12'
-    }
+    pruebas = []
+    for prueba in ficha.select('.atmc-races .atmc-race-body'):
+        nombre = texto(prueba.find('h3'))
+        km = distancia_km(texto(prueba.select_one('.atmc-race-km'))) or distancia_km(nombre)
+        # Cuotas del tramo vigente; si no hay desglose, el 'Desde X €' de la cabecera
+        precios = [precio_euros(texto(cuota)) for cuota in prueba.select('.atmc-race-fees li.is-now strong')]
+        if not precios:
+            precios = [precio_euros(texto(prueba.select_one('.atmc-race-fee')))]
+        pruebas.append({'km': km, 'precios': precios})
+    return pruebas
 
-    try:
-        # 1. Limpieza básica: minúsculas y quitar puntos (ej: "29 May. 26")
-        texto = fecha_texto.lower().replace('.', '').strip()
 
-        # 2. Separar por espacios
-        partes = texto.split()
+def leer_tarjeta(sesion, tarjeta):
+    enlace_titulo = tarjeta.select_one('h3 a')
+    fecha = tarjeta.select_one('time[datetime]')
+    imagen = tarjeta.select_one('.atmc-poster img')
+    url_ficha = urljoin(URL_CALENDARIO, enlace_titulo['href']) if enlace_titulo and enlace_titulo.get('href') else ''
 
-        # Esperamos 3 partes: ['29', 'may', '26']
-        if len(partes) == 3:
-            dia = partes[0].zfill(2)  # "29"
-            mes_txt = partes[1][0:3]  # "may" (cogemos las 3 primeras letras)
-            anio = partes[2]  # "26"
+    url_inscripcion = ''
+    for boton in tarjeta.select('.atmc-actions a[href]'):
+        if 'inscrib' in texto(boton).lower():
+            url_inscripcion = urljoin(URL_CALENDARIO, boton['href'])
+            break
 
-            # Convertir año corto a largo: '26' -> '2026'
-            if len(anio) == 2:
-                anio = f"20{anio}"
+    pruebas = []
+    if url_ficha:
+        pruebas = leer_pruebas(sesion, url_ficha)
+        time.sleep(PAUSA_FICHA)
 
-            # Traducir mes a número
-            mes_numero = meses.get(mes_txt, '00')  # '00' si falla
-
-            if mes_numero == '00':
-                return fecha_texto  # Devolvemos original si no entendemos el mes
-
-            return f"{dia}-{mes_numero}-{anio}"
-
-        return fecha_texto  # Si el formato no es de 3 partes, lo devolvemos tal cual
-
-    except Exception:
-        return fecha_texto
+    return carrera(
+        titulo=texto(tarjeta.select_one('h3')),
+        fecha=fecha['datetime'] if fecha else '',
+        ubicacion=normalizar_ubicacion(texto(tarjeta.select_one('.atmc-where'))),
+        origen=ORIGEN,
+        imagen=urljoin(URL_CALENDARIO, imagen['src']) if imagen and imagen.get('src') else '',
+        url_ficha=url_ficha,
+        url_inscripcion=url_inscripcion,
+        modalidad=tarjeta.get('data-modality', ''),
+        pruebas=pruebas,
+    )
 
 
 def obtener_carreras():
-    print(f"🔄 Conectando con {url_objetivo}...")
-
-    try:
-        response = requests.get(url_objetivo, headers=headers)
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Error de conexión: {e}")
+    print(f"🔄 Conectando con {URL_CALENDARIO}...")
+    sesion = crear_sesion()
+    pagina = descargar(sesion, URL_CALENDARIO)
+    if not pagina:
         return []
 
-    if response.status_code == 200:
-        print("✅ Conexión exitosa. Analizando HTML...")
+    tarjetas = pagina.select('article.atmc-card')
+    print(f"   {len(tarjetas)} tarjetas; leyendo la ficha de cada carrera...")
+    carreras = []
+    for tarjeta in tarjetas:
+        try:
+            item = leer_tarjeta(sesion, tarjeta)
+        except Exception as error:
+            print(f"   ⚠️ Error leyendo una tarjeta: {error}")
+            continue
+        if item:
+            carreras.append(item)
 
-        soup = BeautifulSoup(response.text, 'html.parser')
-        filas = soup.find_all('tr')
-
-        carreras_extraidas = []
-
-        for fila in filas:
-            celdas = fila.find_all('td')
-
-            # --- FILTRO DE SEGURIDAD ---
-            # Si la fila tiene menos de 5 celdas, seguramente es un encabezado o separador.
-            # La saltamos para evitar errores.
-            if len(celdas) < 5:
-                continue
-
-            try:
-                # 4. DATOS PRINCIPALES (Columna 3)
-                # Extraemos esto primero porque si no hay título, no nos interesa la fila
-                evento = celdas[3]
-
-                # Buscamos la etiqueta strong de forma segura
-                titulo = evento.find('strong')
-
-                if not titulo:
-                    continue
-
-                titulo = titulo.get_text(strip=True)
-
-                # 1. FECHA (Corrección para quitar el timestamp oculto)
-                celda_fecha = celdas[0]
-
-                # Buscamos si hay un span dentro (que es donde está el timestamp oculto)
-                span_oculto = celda_fecha.find('span')
-                if span_oculto:
-                    # .decompose() elimina la etiqueta del árbol HTML temporalmente
-                    span_oculto.decompose()
-
-                    # Ahora extraemos el texto limpio (el span ya no existe)
-                fecha_texto = celda_fecha.get_text(strip=True)
-                fecha_texto = limpiar_fecha(fecha_texto)
-
-                # 2. IMAGEN
-                img_tag = celdas[1].find('img')
-                img_url = ""
-                if img_tag:
-                    src = img_tag.get('src')
-                    if src:
-                        if src.startswith('http'):
-                            img_url = src
-                        else:
-                            # Unimos la URL base con la ruta relativa correctamente
-                            img_url = url_base + src.lstrip('/')
-
-                # 3. TIPO. No lo usamos, pero lo dejamos por si acaso
-                tipo = celdas[2].get_text(strip=True)
-
-                # C. UBICACIÓN (CORREGIDO: Usando lista de textos)
-                # stripped_strings devuelve una lista: ['Título', 'Ubicación', 'Texto Botón 1'...]
-                textos_limpios = list(evento.stripped_strings)
-
-                ubicacion = "Murcia"  # Valor por defecto
-
-                # Normalmente el índice 0 es el título y el 1 la ubicación
-                if len(textos_limpios) > 1:
-                    posible_ubicacion = textos_limpios[1]
-
-                    # Verificamos que no nos hayamos comido la ubicación y estemos leyendo un botón
-                    palabras_prohibidas = ["FICHA DE EVENTO", "INSCRIBIRSE", "LISTADO DE INSCRITOS", "LISTA DE ESPERA"]
-                    es_boton = any(p in posible_ubicacion.upper() for p in palabras_prohibidas)
-
-                    if not es_boton:
-                        ubicacion = posible_ubicacion
-
-                # 6. ENLACES
-                enlace_ficha = ""
-                enlace_inscripcion = ""
-                botones = evento.find_all('a')
-
-                for btn in botones:
-                    href = btn.get('href')
-                    texto_btn = btn.get_text(strip=True).upper()
-
-                    if href:
-                        # Aseguramos que el enlace sea absoluto
-                        if not href.startswith('http'):
-                            href = url_base + href.lstrip('/')
-
-                        if "FICHA" in texto_btn:
-                            enlace_ficha = href
-                        elif "INSCRIBIRSE" in texto_btn:
-                            enlace_inscripcion = href
-
-                # Guardamos
-                carrera = {
-                    "fecha": fecha_texto,
-                    "titulo": titulo,
-                    "ubicacion": ubicacion,
-                    "imagen": img_url,
-                    "url_ficha": enlace_ficha,
-                    "url_inscripcion": enlace_inscripcion,
-                    "origen": "ALCANZATUMETA"
-                }
-                carreras_extraidas.append(carrera)
-
-            except Exception as e:
-                # Si una fila concreta falla, imprimimos el error pero NO paramos el programa
-                print(f"⚠️ Error leyendo una fila: {e}")
-                continue
-
-        # --- RESULTADO EN CONSOLA ---
-        print(f"\n🎉 Se han encontrado {len(carreras_extraidas)} carreras.")
-        return carreras_extraidas
-
-    else:
-        print(f"❌ Error al conectar: {response.status_code}")
-        return []
+    print(f"   {len(carreras)} carreras leídas de {len(tarjetas)} tarjetas.")
+    return carreras
 
 
 def ejecucion():
-    datos = obtener_carreras()
+    """Descarga y guarda el CSV. Devuelve True si se han obtenido carreras."""
+    return guardar_csv(obtener_carreras(), RUTA_CSV)
 
-    if datos:
-        # Guardar en un CSV
-        df = pd.DataFrame(datos)
-        cols = ['fecha', 'titulo', 'ubicacion', 'url_inscripcion', 'url_ficha', 'imagen', 'origen']
-        df = df[cols]
-        df.to_csv('data/alcanzatumeta_completo.csv', index=False, encoding='utf-8-sig')
-        print(f"📂 Datos guardados en 'alcanzatumeta_completo.csv'")
-    else:
-        print("\n⚠️ No se encontraron datos. Revisa los selectores HTML.")
+
+if __name__ == "__main__":
+    ejecucion()

@@ -1,122 +1,68 @@
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
-import time
+"""Scraper de babelsport.com: una tarjeta <article class="bs-event-card"> por carrera."""
 
-# 1. Configuración Inicial
-# URL de la web que queremos leer (Pondremos una de ejemplo)
-url_objetivo = "https://www.babelsport.com/eventos-proximos/"
-url_base = "https://www.babelsport.com/"
+from urllib.parse import urljoin
 
-# IMPORTANTE: Usamos un "User-Agent" para parecer un navegador real.
-# Si no pones esto, muchas webs bloquean el script pensando que es un robot malicioso.
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-}
+from scrapers.comun import carrera, crear_sesion, descargar, guardar_csv, normalizar_ubicacion, texto
+
+URL_EVENTOS = "https://www.babelsport.com/eventos-proximos/"
+RUTA_CSV = 'data/babelsport_completo.csv'
+ORIGEN = 'BABELSPORT'
+
+
+def leer_tarjeta(tarjeta):
+    fecha = tarjeta.select_one('time[datetime]')
+    imagen = tarjeta.select_one('.bs-card-image img')
+
+    lugar = tarjeta.select_one('.bs-location')
+    if lugar:
+        for icono in lugar.select('[aria-hidden]'):
+            icono.decompose()  # el símbolo ⌖ que precede a la localidad
+
+    url_ficha = ''
+    url_inscripcion = ''
+    for boton in tarjeta.select('.bs-card-actions a[href]'):
+        etiqueta = texto(boton).lower()
+        if 'reglamento' in etiqueta:
+            url_ficha = urljoin(URL_EVENTOS, boton['href'])
+        elif 'inscr' in etiqueta or 'bs-enroll' in (boton.get('class') or []):
+            url_inscripcion = urljoin(URL_EVENTOS, boton['href'])
+
+    return carrera(
+        titulo=texto(tarjeta.select_one('h3')),
+        fecha=fecha['datetime'] if fecha else '',
+        ubicacion=normalizar_ubicacion(texto(lugar)),
+        origen=ORIGEN,
+        imagen=urljoin(URL_EVENTOS, imagen['src']) if imagen and imagen.get('src') else '',
+        url_ficha=url_ficha,
+        url_inscripcion=url_inscripcion,
+    )
 
 
 def obtener_carreras():
-    print(f"🔄 Conectando con {url_objetivo}...")
-
-    try:
-        response = requests.get(url_objetivo, headers=headers)
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Error de conexión: {e}")
+    print(f"🔄 Conectando con {URL_EVENTOS}...")
+    pagina = descargar(crear_sesion(), URL_EVENTOS)
+    if not pagina:
         return []
 
-    if response.status_code == 200:
-        print("✅ Conexión exitosa. Analizando HTML...")
+    tarjetas = pagina.select('article.bs-event-card')
+    carreras = []
+    for tarjeta in tarjetas:
+        try:
+            item = leer_tarjeta(tarjeta)
+        except Exception as error:
+            print(f"   ⚠️ Error leyendo una tarjeta: {error}")
+            continue
+        if item:
+            carreras.append(item)
 
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        lista_carreras = []
-        carreras = soup.find_all('div', class_='row p-3')
-
-        for carrera in carreras:
-            try:
-
-                imagen, evento = carrera.find_all('div', recursive=False)
-
-                # 1. EXTRAEMOS IMAGEN
-                img_tag = imagen.find('img')
-                img_url = ""
-                if img_tag:
-                    src = img_tag.get('src')
-                    if src:
-                        if src.startswith('http'):
-                            img_url = src
-                        else:
-                            img_url = url_base + src.lstrip('/')
-
-
-                # 2. EXTRAEMOS DATOS DEL EVENTO
-                # 2.1. Extraer Título
-                titulo = evento.find('h3').text.strip()
-
-                # 2.2. Extraer Fecha
-                fecha = evento.find('span').text.strip()
-
-                # 2.3. Extraemos Ubicación
-                ubicacion = "Murcia" 
-                lugar_tag = evento.find('div', class_='col-7 mb-4 text-end')
-                if lugar_tag:
-                    ubicacion = lugar_tag.text.strip()
-
-                # 3. ENLACES
-                enlace_ficha = ""
-                enlace_inscripcion = ""
-                botones = evento.find_all('a')
-
-                for btn in botones:
-                    href = btn.get('href')
-                    texto_btn = btn.get_text(strip=True).upper()
-
-                    if href:
-                        
-                        if not href.startswith('http'):
-                            href = url_base + href.lstrip('/')
-
-                        if "REGLAMENTO" in texto_btn:
-                            enlace_ficha = href
-                        elif "INSCRÍBETE" in texto_btn:
-                            enlace_inscripcion = href
-
-                # Guardamos en un diccionario
-                carrera = {
-                    'titulo': titulo,
-                    'fecha': fecha,
-                    'ubicacion': ubicacion,
-                    "imagen": img_url,
-                    "url_ficha": enlace_ficha,
-                    "url_inscripcion": enlace_inscripcion,
-                    'origen': 'BABELSPORT'  
-                }
-
-                lista_carreras.append(carrera)
-
-            except Exception as e:
-                # Si falta algún dato en una tarjeta, saltamos a la siguiente para no romper el programa
-                print(f"⚠️ Error leyendo una fila: {e}")
-                continue
-
-        # --- RESULTADO EN CONSOLA ---
-        print(f"\n🎉 Se han encontrado {len(lista_carreras)} carreras.")
-        return lista_carreras
-
-    else:
-        print(f"❌ Error al conectar: {response.status_code}")
-        return []
+    print(f"   {len(carreras)} carreras leídas de {len(tarjetas)} tarjetas.")
+    return carreras
 
 
 def ejecucion():
-    datos = obtener_carreras()
+    """Descarga y guarda el CSV. Devuelve True si se han obtenido carreras."""
+    return guardar_csv(obtener_carreras(), RUTA_CSV)
 
-    if datos:
-        # Guardar en un Excel/CSV para verlos
-        df = pd.DataFrame(datos)
-        cols = ['fecha', 'titulo', 'ubicacion', 'url_inscripcion', 'url_ficha', 'imagen', 'origen']
-        df = df[cols]
-        df.to_csv('data/babelsport_completo.csv', index=False, encoding='utf-8-sig')
-        print(f"📂 Datos guardados en 'babelsport_completo.csv'")
-    else:
-        print("\n⚠️ No se encontraron datos. Revisa los selectores HTML.")
+
+if __name__ == "__main__":
+    ejecucion()

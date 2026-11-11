@@ -75,6 +75,15 @@ python main.py
 
 Esto ejecuta scrapers + fusión/deduplicación + actualización en **Turso**.
 
+Además de fecha, lugar, cartel y enlaces, cada carrera guarda `modalidad` (Running, Trail, Cross, Senderismo…), `distancias` (km de cada prueba separados por comas, p. ej. `5,10,21.097`) y `precio_min` / `precio_max` (cuotas vigentes en euros). Alcanza tu Meta y Línea de Salida los publican en la ficha de cada carrera; Babelsport no, así que sus carreras solo llevan modalidad. La fusión crea estas columnas en Turso si no existen.
+
+Para ver qué cambiaría sin escribir en Turso ni avisar a Vercel:
+```sh
+python main.py --dry-run
+```
+
+Si una fuente devuelve 0 carreras (por ejemplo, porque la web ha cambiado su HTML), su CSV no se toca, no se fusiona y `main.py` termina con código de salida 1 para que GitHub Actions marque la ejecución como fallida. Un scraper suelto se lanza con `python -m scrapers.scraper_alcanza`.
+
 ### 3) Publicación en Instagram (opcional)
 
 Con las variables configuradas (`WEBHOOK_URL`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`):
