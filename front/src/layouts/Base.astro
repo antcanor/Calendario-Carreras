@@ -1,0 +1,217 @@
+---
+import Analytics from '@vercel/analytics/astro';
+
+interface Props {
+  titulo: string;
+  descripcion: string;
+  canonical: string;
+  imagen?: string;
+  ogType?: string;
+  schema?: Record<string, unknown>;
+  verificacionGoogle?: string;
+}
+
+const {
+  titulo,
+  descripcion,
+  canonical,
+  imagen = 'https://carreras-murcia.vercel.app/assets/og-image.png',
+  ogType = 'website',
+  schema,
+  verificacionGoogle,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {verificacionGoogle && <meta name="google-site-verification" content={verificacionGoogle} />}
+    <title>{titulo}</title>
+    <meta name="description" content={descripcion} />
+    <meta name="theme-color" content="#12264a" />
+    <link rel="canonical" href={canonical} />
+
+    {schema && <script type="application/ld+json" set:html={JSON.stringify(schema)} />}
+
+    <meta property="og:type" content={ogType} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:title" content={titulo} />
+    <meta property="og:description" content={descripcion} />
+    <meta property="og:image" content={imagen} />
+    <meta property="og:site_name" content="Calendario Murcia Running" />
+    <meta property="og:locale" content="es_ES" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content={canonical} />
+    <meta name="twitter:title" content={titulo} />
+    <meta name="twitter:description" content={descripcion} />
+
+    <link rel="icon" type="image/png" href="/assets/logo-removedbg.png" />
+    <link rel="apple-touch-icon" href="/assets/logo-removedbg.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Murcia Running" />
+    <meta name="application-name" content="Murcia Running" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <style is:global>
+      :root {
+        --marino: #12264a;      /* azul del logo: texto y bloques oscuros */
+        --marino-2: #1d3a6b;
+        --sol: #ffc91f;         /* amarillo de la torre del logo */
+        --carmesi: #b3133b;     /* carmesí de la bandera regional: acción principal */
+        --carmesi-2: #8f0e2e;
+        --tyvek: #f5f6f1;       /* blanco de dorsal: fondo de página */
+        --blanco: #ffffff;
+        --gris: #5a6479;
+        --linea: rgba(18, 38, 74, .14);
+        --display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+        --texto: 'Onest', system-ui, sans-serif;
+        --margen: clamp(1rem, 4vw, 3.5rem);
+        --ancho: 76rem;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; }
+      html { scroll-behavior: smooth; scroll-padding-top: 4.5rem; }
+      body { margin: 0; background: var(--tyvek); color: var(--marino); font: 400 1rem/1.55 var(--texto); -webkit-font-smoothing: antialiased; }
+      a { color: inherit; }
+      img { max-width: 100%; }
+      button, input { font: inherit; color: inherit; }
+      :focus-visible { outline: 3px solid var(--carmesi); outline-offset: 2px; border-radius: 2px; }
+      .solo-lectores { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+      .contenedor { width: 100%; max-width: var(--ancho); margin-inline: auto; padding-inline: var(--margen); }
+
+      /* Cabecera */
+      .cabecera { position: sticky; top: 0; z-index: 1000; background: var(--marino); color: var(--blanco); }
+      .cabecera-fila { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 3.75rem; }
+      .marca { display: inline-flex; align-items: center; gap: .6rem; text-decoration: none; font: 800 1.35rem/1 var(--display); letter-spacing: .02em; text-transform: uppercase; }
+      /* El emblema lleva el corredor en azul marino: necesita fondo claro para verse sobre la cabecera */
+      .marca-sello { width: 2.75rem; height: 2.75rem; padding: .15rem; border-radius: 7px; background: var(--blanco); object-fit: contain; }
+      .nav { display: flex; gap: clamp(.25rem, 2vw, 1.25rem); }
+      .nav a { padding: .45rem .55rem; border-radius: 5px; text-decoration: none; font-weight: 500; font-size: .94rem; }
+      .nav a:hover { background: rgba(255, 255, 255, .12); }
+
+      /* Botones */
+      .boton { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 2.75rem; padding: .55rem 1.1rem; border: 2px solid var(--marino); border-radius: 6px; background: transparent; color: var(--marino); font-weight: 600; font-size: .94rem; line-height: 1.2; text-decoration: none; cursor: pointer; transition: background-color .15s, color .15s, border-color .15s; }
+      .boton:hover { background: var(--marino); color: var(--blanco); }
+      .boton-principal { background: var(--carmesi); border-color: var(--carmesi); color: var(--blanco); }
+      .boton-principal:hover { background: var(--carmesi-2); border-color: var(--carmesi-2); }
+      .boton-marino { background: var(--marino); color: var(--blanco); }
+      .boton-marino:hover { background: var(--marino-2); border-color: var(--marino-2); }
+      .boton-icono { width: 2.75rem; padding: 0; border-color: var(--linea); font-size: 1.05rem; }
+
+      /* Cuenta atrás */
+      .cuenta { display: flex; align-items: baseline; flex-wrap: wrap; gap: .25rem .9rem; font-size: .94rem; }
+      .cuenta-tramo { display: inline-flex; align-items: baseline; gap: .25rem; }
+      .cuenta-tramo strong { font: 800 1.7rem/1 var(--display); font-variant-numeric: tabular-nums; }
+
+      /* Previsión */
+      .clima { display: inline-flex; align-items: center; flex-wrap: wrap; gap: .2rem .7rem; font-size: .875rem; color: var(--gris); }
+      .clima span { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
+      .clima-temp { color: var(--marino); font-weight: 600; }
+
+      /* Mapa (Leaflet) */
+      .mapa { height: clamp(22rem, 46vw, 34rem); border-radius: 10px; border: 1px solid var(--linea); background: #dfe3ea; z-index: 0; }
+      .leaflet-container { font-family: var(--texto); }
+      .leaflet-popup-content-wrapper { border-radius: 8px; box-shadow: 0 6px 24px rgba(18, 38, 74, .22); color: var(--marino); }
+      .leaflet-popup-content { margin: .9rem 1rem; font-size: .9rem; line-height: 1.4; }
+      .popup-titulo { display: block; font-weight: 700; font-size: 1rem; line-height: 1.25; }
+      .popup-meta { display: block; margin-top: .2rem; color: var(--gris); }
+      .popup-enlaces { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin-top: .65rem; }
+      .leaflet-container .popup-enlaces a { color: var(--carmesi); font-weight: 600; }
+
+      /* Pie */
+      .pie { margin-top: clamp(4rem, 8vw, 6.5rem); padding-block: 2rem; background: var(--marino); color: var(--blanco); font-size: .94rem; }
+      .pie-fila { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem 2rem; }
+      .pie p { margin: 0; }
+      .pie-lema { color: #b9c3d8; }
+      .pie a { display: inline-flex; align-items: center; gap: .5rem; margin-right: 3.5rem; font-weight: 600; text-underline-offset: 3px; } /* hueco para el botón de subir */
+
+      .subir { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 900; display: grid; place-items: center; width: 2.9rem; height: 2.9rem; border: 0; border-radius: 50%; background: var(--marino); color: var(--blanco); font-size: 1.15rem; cursor: pointer; box-shadow: 0 4px 14px rgba(18, 38, 74, .3); opacity: 0; visibility: hidden; transition: opacity .2s, visibility .2s; }
+      .subir.visible { opacity: 1; visibility: visible; }
+      .subir:hover { background: var(--carmesi); }
+
+      @media (max-width: 560px) {
+        .marca-nombre { display: none; }
+        .nav a { padding-inline: .45rem; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html { scroll-behavior: auto; }
+        *, *::before, *::after { animation: none !important; transition: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="cabecera">
+      <div class="contenedor cabecera-fila">
+        <a class="marca" href="/" aria-label="Calendario Murcia Running, inicio">
+          <img class="marca-sello" src="/assets/logo-emblema.png" alt="" width="44" height="44" />
+          <span class="marca-nombre">Murcia Running</span>
+        </a>
+        <nav class="nav" aria-label="Secciones">
+          <a href="/#calendario">Calendario</a>
+          <a href="/#mapa">Mapa</a>
+          <a href="/#ritmos">Ritmos</a>
+        </nav>
+      </div>
+    </header>
+
+    <slot />
+
+    <footer class="pie">
+      <div class="contenedor pie-fila">
+        <div>
+          <p><strong>Calendario Murcia Running</strong> © {new Date().getFullYear()}</p>
+          <p class="pie-lema">Tu próximo kilómetro empieza aquí.</p>
+        </div>
+        <a href="https://instagram.com/calendariomurciarunning/" target="_blank" rel="noopener noreferrer">
+          <i class="bi bi-instagram" aria-hidden="true"></i> Síguenos en Instagram
+        </a>
+      </div>
+    </footer>
+
+    <button id="subir" class="subir" type="button" aria-label="Volver arriba"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
+    <Analytics />
+    <slot name="scripts" />
+
+    <script>
+      // Cuenta atrás: cualquier elemento con data-cuenta="AAAA-MM-DD" (salida a las 9:00)
+      document.querySelectorAll<HTMLElement>('[data-cuenta]').forEach((el) => {
+        const [a, m, d] = (el.dataset.cuenta || '').split('-').map(Number);
+        if (!a || !m || !d) return;
+        const salida = new Date(a, m - 1, d, 9, 0, 0).getTime();
+        const poner = (clave: string, valor: number) => {
+          const nodo = el.querySelector(`[data-cd="${clave}"]`);
+          if (nodo) nodo.textContent = String(valor).padStart(2, '0');
+        };
+        const actualizar = () => {
+          const resto = salida - Date.now();
+          if (resto <= 0) {
+            el.textContent = '¡Hoy es la carrera!';
+            clearInterval(intervalo);
+            return;
+          }
+          poner('d', Math.floor(resto / 86400000));
+          poner('h', Math.floor((resto % 86400000) / 3600000));
+          poner('m', Math.floor((resto % 3600000) / 60000));
+          poner('s', Math.floor((resto % 60000) / 1000));
+        };
+        const intervalo = setInterval(actualizar, 1000);
+        actualizar();
+      });
+
+      const subir = document.getElementById('subir');
+      window.addEventListener('scroll', () => subir?.classList.toggle('visible', window.scrollY > 350), { passive: true });
+      subir?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+    </script>
+  </body>
+</html>

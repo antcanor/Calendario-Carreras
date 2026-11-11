@@ -4,8 +4,8 @@
   "description": "El calendario independiente de carreras populares, trail y maratón de la Región de Murcia.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#121315",
-  "theme_color": "#121315",
+  "background_color": "#12264a",
+  "theme_color": "#12264a",
   "orientation": "portrait-primary",
   "icons": [
     {
